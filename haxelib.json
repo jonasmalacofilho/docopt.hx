@@ -1,0 +1,13 @@
+{
+    "name"         :  "docopt",
+    "url"          :  "",
+    "license"      :  "BSD",
+    "tags"         :  [],
+    "description"  :  "A work in progress",
+    "version"      :  "0.0.0-alpha",
+    "classPath"    :  "lib",
+    "releasenote"  :  "Initial work",
+    "contributors" :  ["jonasmalacofilho", "elebeta"],
+    "dependencies" :  {}
+}
+
