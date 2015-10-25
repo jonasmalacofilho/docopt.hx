@@ -129,11 +129,11 @@ class DocstringParser {
 				switch (n) {
 				case null:  // NOOP
 				case TElipsis:
-					n = pop();
 					e = EElipsis(e);
-				case TPipe:
 					n = pop();
+				case TPipe:
 					e = EXor(e, expr(breakOn));
+					n = pop();
 				case _:
 				}
 				list.push(e);
@@ -185,26 +185,35 @@ class DocOpt {
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
 		var usage = DocstringParser.parse(doc);
-		trace(usage);
+		// trace(usage);
 
 		function match(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
 		{
 			if (!expr.match(EOptionals(_)) && args.length < 1)
 				return false;
+			// trace(expr);
 			switch (expr) {
 			case EList(list):
 				for (e in list) {
 					if (!match(args, e, opts))
 						return false;
 				}
-			case EElement(LArgument(name)), EElement(LCommand(name)):
+				if (args.length != 0)
+					return false;
+			case EElement(LArgument(name)):
 				opts[name] = args.shift();
+			case EElement(LCommand(name)):
+				if (args.shift() != name)
+					return false;
+				opts[name] = true;
 			case EElement(LOption(opt, param)):
-				// TODO everything
+				// TODO
 				return false;
 			case EOptionals(e), ERequired(e):
+				// TODO all inner matches are optional (or not?)
 				return match(args, e, opts);
 			case EXor(a, b):
+				// TODO first make copies of args and a
 				return match(args, a, opts) || match(args, b, opts);
 			case EElipsis(e):
 				if (!match(args, e, opts))
@@ -215,11 +224,12 @@ class DocOpt {
 			return true;
 		}
 
+		// trace(args);
 		for (pat in usage.patterns) {
+			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
 			var a = new Map();
 			if (match(args.copy(), pat.pattern, a))
 				return a;
-			trace(a);
 		}
 
 		return new Map();
