@@ -182,47 +182,61 @@ class DocstringParser {
 }
 
 class DocOpt {
+	static function tryMatch(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
+	{
+		var _a = args.copy();
+		var _o = new Map();
+		if (match(_a, expr, _o)) {
+			while (args.length > _a.length)
+				args.shift();
+			for (k in _o.keys())
+				opts[k] = _o[k];
+			return true;
+		}
+		return false;
+	}
+
+	static function match(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
+	{
+		if (!expr.match(EOptionals(_)) && args.length < 1)
+			return false;
+		// trace(expr);
+		switch (expr) {
+		case EList(list):
+			for (e in list) {
+				if (!match(args, e, opts))
+					return false;
+			}
+			if (args.length != 0)
+				return false;
+		case EElement(LArgument(name)):
+			opts[name] = args.shift();
+		case EElement(LCommand(name)):
+			if (args.shift() != name)
+				return false;
+			opts[name] = true;
+		case EElement(LOption(opt, param)):
+			// TODO
+			return false;
+		case EOptionals(e):
+			return tryMatch(args, e, opts);
+		case ERequired(e):
+			return match(args, e, opts);
+		case EXor(a, b):
+			return tryMatch(args, a, opts) || tryMatch(args, b, opts);
+		case EElipsis(e):
+			if (!match(args, e, opts))
+				return false;
+			while (match(args, e, opts))
+				true;  // NOOP
+		}
+		return true;
+	}
+
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
 		var usage = DocstringParser.parse(doc);
 		// trace(usage);
-
-		function match(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
-		{
-			if (!expr.match(EOptionals(_)) && args.length < 1)
-				return false;
-			// trace(expr);
-			switch (expr) {
-			case EList(list):
-				for (e in list) {
-					if (!match(args, e, opts))
-						return false;
-				}
-				if (args.length != 0)
-					return false;
-			case EElement(LArgument(name)):
-				opts[name] = args.shift();
-			case EElement(LCommand(name)):
-				if (args.shift() != name)
-					return false;
-				opts[name] = true;
-			case EElement(LOption(opt, param)):
-				// TODO
-				return false;
-			case EOptionals(e), ERequired(e):
-				// TODO all inner matches are optional (or not?)
-				return match(args, e, opts);
-			case EXor(a, b):
-				// TODO first make copies of args and a
-				return match(args, a, opts) || match(args, b, opts);
-			case EElipsis(e):
-				if (!match(args, e, opts))
-					return false;
-				while (match(args, e, opts))
-					true;  // NOOP
-			}
-			return true;
-		}
 
 		// trace(args);
 		for (pat in usage.patterns) {
