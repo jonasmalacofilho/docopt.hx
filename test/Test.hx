@@ -24,7 +24,7 @@ class Test {
 			--moored      Moored (anchored) mine.
 			--drifting    Drifting mine.
 		";
-		DocOpt.DocstringParser.parse(navalFate);
+		trace(DocOpt.docopt(navalFate, ["ship", "Guardian", "move", "10", "50", "--speed", "20"]));
 	}
 
 	public static function main()

@@ -174,8 +174,6 @@ class DocstringParser {
 		}
 
 		var patterns = [ for (li in usageMarker.matched(1).split("\n")) parsePattern(options, li.trim()) ];
-		trace(patterns);
-
 		return {
 			options : options,
 			patterns : patterns
@@ -184,5 +182,47 @@ class DocstringParser {
 }
 
 class DocOpt {
+	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
+	{
+		var usage = DocstringParser.parse(doc);
+		trace(usage);
+
+		function match(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
+		{
+			if (!expr.match(EOptionals(_)) && args.length < 1)
+				return false;
+			switch (expr) {
+			case EList(list):
+				for (e in list) {
+					if (!match(args, e, opts))
+						return false;
+				}
+			case EElement(LArgument(name)), EElement(LCommand(name)):
+				opts[name] = args.shift();
+			case EElement(LOption(opt, param)):
+				// TODO everything
+				return false;
+			case EOptionals(e), ERequired(e):
+				return match(args, e, opts);
+			case EXor(a, b):
+				return match(args, a, opts) || match(args, b, opts);
+			case EElipsis(e):
+				if (!match(args, e, opts))
+					return false;
+				while (match(args, e, opts))
+					true;  // NOOP
+			}
+			return true;
+		}
+
+		for (pat in usage.patterns) {
+			var a = new Map();
+			if (match(args.copy(), pat.pattern, a))
+				return a;
+			trace(a);
+		}
+
+		return new Map();
+	}
 }
 
