@@ -98,7 +98,7 @@ class DocstringParser {
 			else if (~/^<.+?>$/.match(n))
 				opt.hasParam = true;
 			else
-				throw 'Usage: bad option name $n';
+				throw 'Docstring: bad option name $n';
 		}
 		return opt;
 	}
@@ -138,7 +138,7 @@ class DocstringParser {
 								p = o.substr(eqi + 1);
 								o = o.substr(0, eqi);
 								if (!~/^<.+>$/.match(p) && p.toUpperCase() != p)
-									throw 'Usage: bad parameter format $p';
+									throw 'Docstring: bad parameter format $p';
 							}
 						} else {
 							// TODO split short options from each other and parameter
@@ -149,12 +149,12 @@ class DocstringParser {
 							else
 								null;
 						if (hasParam == false && p != null) {
-							throw 'Usage: option $o does not expect param';
+							throw 'Docstring: option $o does not expect param';
 						}
 						if (hasParam == true && p == null) {
 							p = switch (pop()) {
 								case TArgument(a): a;
-								case _: throw 'Usage: missing parameter for $o';
+								case _: throw 'Docstring: missing parameter for $o';
 								}
 						}
 						EElement(LOption(o, p));
@@ -162,19 +162,19 @@ class DocstringParser {
 						var inner = expr(TCloseBracket);
 						var n = pop();
 						if (n == null || !n.match(TCloseBracket))
-							throw "Usage: missing closing bracket";
+							throw "Docstring: missing closing bracket";
 						EOptionals(inner);
 					case TOpenParens:
 						var inner = expr(TCloseParens);
 						var n = pop();
 						if (n == null || !n.match(TCloseParens))
-							throw "Usage: missing closing parens";
+							throw "Docstring: missing closing parens";
 						ERequired(inner);
 					case TCloseBracket, TCloseParens if (breakOn != null && t == breakOn):
 						rewind();
 						break;
 					case t:
-						throw 'Usage: unexpected token $t';
+						throw 'Docstring: unexpected token $t';
 				}
 				var n = pop();
 				switch (n) {
@@ -216,7 +216,7 @@ class DocstringParser {
 		// patterns.
 		var usageMarker = ~/^.*usage:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
 		if (!usageMarker.match(doc))
-			throw 'Usage: missing "usage:" (case insensitive) marker';
+			throw 'Docstring: missing "usage:" (case insensitive) marker';
 
 		var options = null;
 		var optionsMarker = ~/^.*options:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
