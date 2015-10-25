@@ -27,8 +27,8 @@ class Test {
 		trace(DocOpt.docopt(navalFate, ["ship", "new", "Guardian"]));
 		trace(DocOpt.docopt(navalFate, ["ship", "Guardian", "move", "10", "50", "--speed", "20"]));
 		trace(DocOpt.docopt(navalFate, ["ship", "shoot", "20", "40"]));
-		// trace(DocOpt.docopt(navalFate, ["mine", "set", "5", "45"]));
-		// trace(DocOpt.docopt(navalFate, ["mine", "remove", "15", "55"]));
+		trace(DocOpt.docopt(navalFate, ["mine", "set", "5", "45"]));
+		trace(DocOpt.docopt(navalFate, ["mine", "remove", "15", "55"]));
 	}
 
 	public static function main()

@@ -239,7 +239,7 @@ class DocOpt {
 				}
 			}
 		case EOptionals(e):
-			return tryMatch(args, e, opts);
+			tryMatch(args, e, opts);
 		case ERequired(e):
 			return match(args, e, opts);
 		case EXor(a, b):
