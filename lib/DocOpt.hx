@@ -20,11 +20,15 @@ typedef Pattern = {
 	pattern : Expr
 }
 
-typedef Option = String;
+typedef Option = {
+	shortNames : Array<String>,
+	longNames : Array<String>,
+	hasParam : Bool
+}
 
 typedef Usage = {
 	patterns : Array<Pattern>,
-	options : Array<Option>
+	options : Map<String, Option>
 }
 
 enum Token {
@@ -70,7 +74,36 @@ class DocstringParser {
 		return tokens;
 	}
 
-	static function parsePattern(options, li:String)
+	static function parseOptionDesc(li:String):Option
+	{
+		var split = li.trim().split("  ");
+		var names = ~/[ ,]/g.split(split[0]);
+		var desc = split[1];
+
+		var opt = {
+			shortNames : [],
+			longNames : [],
+			hasParam : false
+		};
+		for (n in names) {
+			var eqi = n.indexOf("=");
+			if (eqi > -1) {
+				opt.hasParam = true;
+				n = n.substr(0, eqi);
+			}
+			if (~/^-[^-]$/.match(n))
+				opt.shortNames.push(n);
+			else if (~/^--.+$/.match(n))
+				opt.longNames.push(n);
+			else if (~/^<.+?>$/.match(n))
+				opt.hasParam = true;
+			else
+				throw 'Usage: bad option name $n';
+		}
+		return opt;
+	}
+
+	static function parsePattern(options:Map<String,Option>, li:String):Pattern
 	{
 		var tokens = tokensOf(li);
 		var rewindBuf = new List();
@@ -99,38 +132,49 @@ class DocstringParser {
 					case TOption(o):
 						var p = null;
 						if (o.startsWith("--")) {
-							// TODO check if option expects parameter, and get it necessary
 							var eqi = o.indexOf("=");
 							if (eqi > -1) {
 								// try to get parameter from '=*'
 								p = o.substr(eqi + 1);
 								o = o.substr(0, eqi);
-								// TODO check if param is argument-like: <foo> or FOO
-							} else {
-								// TODO else get it from the next argument
+								if (!~/^<.+>$/.match(p) && p.toUpperCase() != p)
+									throw 'Usage: bad parameter format $p';
 							}
 						} else {
 							// TODO split short options from each other and parameter
 							// TODO handle multiple short options
+						}
+						var hasParam:Null<Bool> = if (options != null && options.exists(o))
+								options[o].hasParam
+							else
+								null;
+						if (hasParam == false && p != null) {
+							throw 'Usage: option $o does not expect param';
+						}
+						if (hasParam == true && p == null) {
+							p = switch (pop()) {
+								case TArgument(a): a;
+								case _: throw 'Usage: missing parameter for $o';
+								}
 						}
 						EElement(LOption(o, p));
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
 						var n = pop();
 						if (n == null || !n.match(TCloseBracket))
-							throw "Missing closing bracket";
+							throw "Usage: missing closing bracket";
 						EOptionals(inner);
 					case TOpenParens:
 						var inner = expr(TCloseParens);
 						var n = pop();
 						if (n == null || !n.match(TCloseParens))
-							throw "Missing closing parens";
+							throw "Usage: missing closing parens";
 						ERequired(inner);
 					case TCloseBracket, TCloseParens if (breakOn != null && t == breakOn):
 						rewind();
 						break;
 					case t:
-						throw 'Unexpected token $t';
+						throw 'Usage: unexpected token $t';
 				}
 				var n = pop();
 				switch (n) {
@@ -170,14 +214,21 @@ class DocstringParser {
 		// spec: text occuring between keyword usage: (case-insensitive) and
 		// a visibly empty line is interpreted as list of usage
 		// patterns.
-		var usageMarker = ~/^.*usage:[ \t\n]*(.+?)(\n[ \t]*\n)|(.+)$/si;
+		var usageMarker = ~/^.*usage:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
 		if (!usageMarker.match(doc))
-			throw 'Missing "Usage:" (case insensitive) marker';
+			throw 'Usage: missing "usage:" (case insensitive) marker';
 
 		var options = null;
-		var optionsMarker = ~/^.*options:[ \t\n]*(.+?)(\n[ \t]*\n)|(.+)$/si;
-		if (optionsMarker.match(usageMarker.matchedRight())) {
-			// TODO
+		var optionsMarker = ~/^.*options:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
+		if (usageMarker.matched(3) != null && optionsMarker.match(usageMarker.matched(3))) {
+			options = new Map();
+			for (li in optionsMarker.matched(1).split("\n")) {
+				var opt = parseOptionDesc(li);
+				for (name in opt.shortNames)
+					options[name] = opt;
+				for (name in opt.longNames)
+					options[name] = opt;
+			}
 		}
 
 		var patterns = [ for (li in usageMarker.matched(1).split("\n")) parsePattern(options, li.trim()) ];
