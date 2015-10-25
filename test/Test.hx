@@ -24,6 +24,7 @@ class Test {
 			--moored      Moored (anchored) mine.
 			--drifting    Drifting mine.
 		";
+		trace(DocOpt.doctrim(navalFate));
 		trace(DocOpt.docopt(navalFate, ["ship", "new", "Guardian"]));
 		trace(DocOpt.docopt(navalFate, ["ship", "Guardian", "move", "10", "50", "--speed", "20"]));
 		trace(DocOpt.docopt(navalFate, ["ship", "shoot", "20", "40"]));
