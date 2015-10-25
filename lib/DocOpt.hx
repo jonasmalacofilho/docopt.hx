@@ -20,6 +20,13 @@ typedef Pattern = {
 	pattern : Expr
 }
 
+typedef Option = String;
+
+typedef Usage = {
+	patterns : Array<Pattern>,
+	options : Array<Option>
+}
+
 enum Token {
 	TOpenBracket;
 	TCloseBracket;
@@ -158,7 +165,7 @@ class DocstringParser {
 		return pattern();
 	}
 
-	public static function parse(doc:String)
+	public static function parse(doc:String):Usage
 	{
 		// spec: text occuring between keyword usage: (case-insensitive) and
 		// a visibly empty line is interpreted as list of usage
@@ -245,6 +252,7 @@ class DocOpt {
 		case EXor(a, b):
 			return tryMatch(args, a, opts) || tryMatch(args, b, opts);
 		case EElipsis(e):
+			// TODO deal (somewhere) with the multiple option values
 			if (!match(args, e, opts))
 				return false;
 			while (match(args, e, opts))
