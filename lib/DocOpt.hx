@@ -216,8 +216,28 @@ class DocOpt {
 				return false;
 			opts[name] = true;
 		case EElement(LOption(opt, param)):
-			// TODO
-			return false;
+			var a = args.shift();
+			if (a == opt) {
+				if (param == null) {
+					opts[opt] = true;
+				} else {
+					if (args.length < 1 )
+						return false;
+					opts[opt] = args.shift();
+				}
+			} else {
+				var eqi = a.indexOf("=");
+				if (eqi > -1) {
+					var p = a.substr(eqi + 1);
+					var a = a.substr(0, eqi);
+					if (a != opt || param == null)
+						return false;
+					opts[opt] = p;
+				} else {
+					// TODO check for synonyms
+					return false;
+				}
+			}
 		case EOptionals(e):
 			return tryMatch(args, e, opts);
 		case ERequired(e):
