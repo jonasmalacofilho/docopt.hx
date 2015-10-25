@@ -24,7 +24,7 @@ class Test {
 			--moored      Moored (anchored) mine.
 			--drifting    Drifting mine.
 		";
-		docopt.DocstringParser.parse(navalFate);
+		DocOpt.DocstringParser.parse(navalFate);
 	}
 
 	public static function main()
