@@ -147,7 +147,7 @@ class DocstringParser {
 					case TCommand(c): EElement(LCommand(c));
 					case TOption(null):
 						// TODO only allow if docstring has options section
-						EElement(LOption);
+						EOptionals(EElement(LOption));
 					case TOption(o):
 						var p = null;
 						if (o.startsWith("--")) {
@@ -385,6 +385,32 @@ class DocOpt {
 		return StringTools.trim(trimmed.join("\n"));
 	}
 
+	static function makeRes(usage:Usage):Map<String,Dynamic>
+	{
+		var res = new Map<String,Dynamic>();
+		for (o in usage.options) {
+			var init = o.hasParam ? null : false;
+			for (n in o.names)
+				res[n] = init;
+		}
+
+		function addToRes(expr:Expr)
+		{
+			switch (expr) {
+			case EEmpty: return;
+			case EList(li): for (e in li) addToRes(e);
+			case EElement(LArgument(n)), EElement(LCommand(n)): res[n] = false;
+			case EElement(LOption): return;
+			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
+			case EXor(a, b): addToRes(a); addToRes(b);
+			}
+		}
+		for (p in usage.patterns)
+			addToRes(p.pattern);
+
+		return res;
+	}
+
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
 		var usage = DocstringParser.parse(doc);
@@ -394,7 +420,7 @@ class DocOpt {
 		for (pat in usage.patterns) {
 			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
 			trace(pat.pattern);
-			var res = new Map();
+			var res = makeRes(usage);
 			if (match(args.copy(), pat.pattern, usage.options, res))
 				return res;
 		}

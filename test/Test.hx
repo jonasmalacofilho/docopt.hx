@@ -21,7 +21,7 @@ class Test {
 
 	static inline function assertFail(usage, args, ?pos:haxe.PosInfos)
 	{
-		Assert.isNull(DocOpt.docopt(usage, args));
+		Assert.isNull(DocOpt.docopt(usage, args), "should not have matched any pattern");
 	}
 
 	public function new() {}
