@@ -274,6 +274,32 @@ class DocstringParser {
 }
 
 class DocOpt {
+	static function makeRes(usage:Usage):Map<String,Dynamic>
+	{
+		var res = new Map<String,Dynamic>();
+		for (o in usage.options) {
+			var init = o.hasParam ? null : false;
+			for (n in o.names)
+				res[n] = init;
+		}
+
+		function addToRes(expr:Expr)
+		{
+			switch (expr) {
+			case EEmpty: return;
+			case EList(li): for (e in li) addToRes(e);
+			case EElement(LArgument(n)), EElement(LCommand(n)): res[n] = false;
+			case EElement(LOption): return;
+			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
+			case EXor(a, b): addToRes(a); addToRes(b);
+			}
+		}
+		for (p in usage.patterns)
+			addToRes(p.pattern);
+
+		return res;
+	}
+
 	static function tryMatch(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		var _a = args.copy();
@@ -292,17 +318,14 @@ class DocOpt {
 	{
 		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
 			return false;
+		trace("matching " + expr);
 		switch (expr) {
 		case EEmpty:
-			if (args.length != 0)
-				return false;
 		case EList(list):
 			for (e in list) {
 				if (!match(args, e, opts, res))
 					return false;
 			}
-			if (args.length != 0)
-				return false;
 		case EElement(LArgument(name)):
 			res[name] = args.shift();
 		case EElement(LCommand(name)):
@@ -385,44 +408,20 @@ class DocOpt {
 		return StringTools.trim(trimmed.join("\n"));
 	}
 
-	static function makeRes(usage:Usage):Map<String,Dynamic>
-	{
-		var res = new Map<String,Dynamic>();
-		for (o in usage.options) {
-			var init = o.hasParam ? null : false;
-			for (n in o.names)
-				res[n] = init;
-		}
-
-		function addToRes(expr:Expr)
-		{
-			switch (expr) {
-			case EEmpty: return;
-			case EList(li): for (e in li) addToRes(e);
-			case EElement(LArgument(n)), EElement(LCommand(n)): res[n] = false;
-			case EElement(LOption): return;
-			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
-			case EXor(a, b): addToRes(a); addToRes(b);
-			}
-		}
-		for (p in usage.patterns)
-			addToRes(p.pattern);
-
-		return res;
-	}
-
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
 		var usage = DocstringParser.parse(doc);
 		// trace(usage);
 
-		trace(args);
+		trace("args " + args);
 		for (pat in usage.patterns) {
-			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
-			trace(pat.pattern);
+			trace("pattern " + Lambda.indexOf(usage.patterns, pat));
+			// trace("expr " + pat.pattern);
+			var _args = args.copy();
 			var res = makeRes(usage);
-			if (match(args.copy(), pat.pattern, usage.options, res))
+			if (match(_args, pat.pattern, usage.options, res) && _args.length == 0)
 				return res;
+			trace("failed match");
 		}
 
 		return null;
