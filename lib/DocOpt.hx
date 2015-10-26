@@ -2,7 +2,7 @@ using StringTools;
 
 enum Element {
 	LArgument(arg:String);
-	LOption(opt:String, ?param:String);
+	LOption(opt:Option);
 	LCommand(cmd:String);
 }
 
@@ -21,8 +21,7 @@ typedef Pattern = {
 }
 
 typedef Option = {
-	shortNames : Array<String>,
-	longNames : Array<String>,
+	names : Array<String>,
 	hasParam : Bool
 }
 
@@ -81,8 +80,7 @@ class DocstringParser {
 		var desc = split[1];
 
 		var opt = {
-			shortNames : [],
-			longNames : [],
+			names : [],
 			hasParam : false
 		};
 		for (n in names) {
@@ -91,15 +89,18 @@ class DocstringParser {
 				opt.hasParam = true;
 				n = n.substr(0, eqi);
 			}
-			if (~/^-[^-]$/.match(n))
-				opt.shortNames.push(n);
-			else if (~/^--.+$/.match(n))
-				opt.longNames.push(n);
-			else if (~/^<.+?>$/.match(n))
+			if (~/^-[^-]$/.match(n) || ~/^--.+$/.match(n)) {
+				opt.names.push(n);
+			} else if (~/^<.+?>$/.match(n) || n.toUpperCase() == n) {
 				opt.hasParam = true;
-			else
+			} else if (~/^-[^-].+$/.match(n)) {
+				opt.names.push(n.substr(0, 2));
+				opt.hasParam = true;
+			} else {
 				throw 'Docstring: bad option name $n';
+			}
 		}
+		// trace(opt);
 		return opt;
 	}
 
@@ -121,6 +122,16 @@ class DocstringParser {
 				tokens.push(rewindBuf.pop());
 			return null;
 		}
+		function push(t)
+		{
+			tokens.push(t);
+		}
+		function hasParam(o)
+		{
+			if (!options.exists(o))
+				return null;
+			return options[o].hasParam;
+		}
 		function expr(?breakOn)
 		{
 			var list = [];
@@ -134,30 +145,31 @@ class DocstringParser {
 						if (o.startsWith("--")) {
 							var eqi = o.indexOf("=");
 							if (eqi > -1) {
-								// try to get parameter from '=*'
 								p = o.substr(eqi + 1);
 								o = o.substr(0, eqi);
 								if (!~/^<.+>$/.match(p) && p.toUpperCase() != p)
 									throw 'Docstring: bad parameter format $p';
+								if (hasParam(o) == false)
+									throw 'Docstring: option $o does not expect param';
 							}
-						} else {
-							// TODO split short options from each other and parameter
-							// TODO handle multiple short options
-						}
-						var hasParam:Null<Bool> = if (options != null && options.exists(o))
-								options[o].hasParam
+						} else if (o.length > 2) {
+							var s = o.substr(0, 2);
+							if (hasParam(s))
+								p = o.substr(2);
 							else
-								null;
-						if (hasParam == false && p != null) {
-							throw 'Docstring: option $o does not expect param';
+								push(TOption("-" + o.substr(2)));
+							o = s;
 						}
-						if (hasParam == true && p == null) {
+						if (p == null && hasParam(o)) {
 							p = switch (pop()) {
 								case TArgument(a): a;
 								case _: throw 'Docstring: missing parameter for $o';
 								}
 						}
-						EElement(LOption(o, p));
+						var opt = options[o];
+						if (o == null)
+							opt = { names : [o], hasParam : p != null };
+						EElement(LOption(opt));
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
 						var n = pop();
@@ -218,15 +230,12 @@ class DocstringParser {
 		if (!usageMarker.match(doc))
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
 
-		var options = null;
+		var options = new Map();
 		var optionsMarker = ~/^.*options:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
 		if (usageMarker.matched(3) != null && optionsMarker.match(usageMarker.matched(3))) {
-			options = new Map();
 			for (li in optionsMarker.matched(1).split("\n")) {
 				var opt = parseOptionDesc(li);
-				for (name in opt.shortNames)
-					options[name] = opt;
-				for (name in opt.longNames)
+				for (name in opt.names)
 					options[name] = opt;
 			}
 		}
@@ -240,21 +249,21 @@ class DocstringParser {
 }
 
 class DocOpt {
-	static function tryMatch(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
+	static function tryMatch(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		var _a = args.copy();
-		var _o = new Map();
-		if (match(_a, expr, _o)) {
+		var _r = new Map();
+		if (match(_a, expr, opts, _r)) {
 			while (args.length > _a.length)
 				args.shift();
-			for (k in _o.keys())
-				opts[k] = _o[k];
+			for (k in _r.keys())
+				res[k] = _r[k];
 			return true;
 		}
 		return false;
 	}
 
-	static function match(args:Array<String>, expr:Expr, opts:Map<String,Dynamic>):Bool
+	static function match(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		if (!expr.match(EOptionals(_)) && args.length < 1)
 			return false;
@@ -262,51 +271,58 @@ class DocOpt {
 		switch (expr) {
 		case EList(list):
 			for (e in list) {
-				if (!match(args, e, opts))
+				if (!match(args, e, opts, res))
 					return false;
 			}
 			if (args.length != 0)
 				return false;
 		case EElement(LArgument(name)):
-			opts[name] = args.shift();
+			res[name] = args.shift();
 		case EElement(LCommand(name)):
 			if (args.shift() != name)
 				return false;
-			opts[name] = true;
-		case EElement(LOption(opt, param)):
-			var a = args.shift();
-			if (a == opt) {
-				if (param == null) {
-					opts[opt] = true;
-				} else {
-					if (args.length < 1 )
-						return false;
-					opts[opt] = args.shift();
-				}
-			} else {
-				var eqi = a.indexOf("=");
+			res[name] = true;
+		case EElement(LOption(opt)):
+			var r = null;
+			var o = args.shift();
+			var p = null;
+			if (o.startsWith("--")) {
+				var eqi = o.indexOf("=");
 				if (eqi > -1) {
-					var p = a.substr(eqi + 1);
-					var a = a.substr(0, eqi);
-					if (a != opt || param == null)
-						return false;
-					opts[opt] = p;
+					p = o.substr(eqi + 1);
+					o = o.substr(0, eqi);
+				}
+			} else if (o.length > 2) {
+				r = o.substr(2);
+				o = o.substr(0, 2);
+			}
+			if (!Lambda.has(opt.names, o))
+				return false;
+			if (p == null && opt.hasParam) {
+				if (r != null) {
+					p = r;
+					r = null;
+				} else if (args.length > 0) {
+					p = args.shift();
 				} else {
-					// TODO check for synonyms
 					return false;
 				}
 			}
+			if (r != null)
+				args.unshift("-" + r);
+			for (n in opt.names)
+				res[n] = untyped p != null ? p : true;
 		case EOptionals(e):
-			tryMatch(args, e, opts);
+			tryMatch(args, e, opts, res);
 		case ERequired(e):
-			return match(args, e, opts);
+			return match(args, e, opts, res);
 		case EXor(a, b):
-			return tryMatch(args, a, opts) || tryMatch(args, b, opts);
+			return tryMatch(args, a, opts, res) || tryMatch(args, b, opts, res);
 		case EElipsis(e):
-			// TODO deal (somewhere) with the multiple option values
-			if (!match(args, e, opts))
+			// TODO deal (somewhere) with the multiple returned values
+			if (!match(args, e, opts, res))
 				return false;
-			while (match(args, e, opts))
+			while (match(args, e, opts, res))
 				true;  // NOOP
 		}
 		return true;
@@ -343,9 +359,9 @@ class DocOpt {
 		// trace(args);
 		for (pat in usage.patterns) {
 			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
-			var a = new Map();
-			if (match(args.copy(), pat.pattern, a))
-				return a;
+			var res = new Map();
+			if (match(args.copy(), pat.pattern, usage.options, res))
+				return res;
 		}
 
 		return new Map();
