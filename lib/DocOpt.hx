@@ -78,7 +78,7 @@ class DocstringParser {
 	static function parseOptionDesc(li:String):Option
 	{
 		var split = li.trim().split("  ");
-		var names = ~/[ ,]/g.split(split[0]);
+		var names = ~/[ ]|(,[ ]?)/g.split(split[0]);
 		var desc = split[1];
 
 		var opt = {
@@ -411,7 +411,8 @@ class DocOpt {
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
 		var usage = DocstringParser.parse(doc);
-		// trace(usage);
+		// trace("usage " + usage);
+		trace("options " + usage.options);
 
 		trace("args " + args);
 		for (pat in usage.patterns) {
