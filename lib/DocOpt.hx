@@ -221,26 +221,35 @@ class DocstringParser {
 		return pattern();
 	}
 
+	static function getSection(doc:String, marker:String)
+	{
+		var pat = new EReg(marker, "i");
+		if (!pat.match(doc))
+			return null;
+		var vblank = ~/\n[ \t]*\n/;
+		if (vblank.match(pat.matchedRight()))
+			return vblank.matchedLeft();
+		else
+			return pat.matchedRight();
+	}
+
 	public static function parse(doc:String):Usage
 	{
-		// spec: text occuring between keyword usage: (case-insensitive) and
-		// a visibly empty line is interpreted as list of usage
-		// patterns.
-		var usageMarker = ~/^.*usage:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
-		if (!usageMarker.match(doc))
+		var usageText = getSection(doc, "usage:");
+		if (usageText == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
+		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
 
 		var options = new Map();
-		var optionsMarker = ~/^.*options:[ \t\n]*(.+?)((\n[ \t]*\n.*)|[ \t\n]*)$/si;
-		if (usageMarker.matched(3) != null && optionsMarker.match(usageMarker.matched(3))) {
-			for (li in optionsMarker.matched(1).split("\n")) {
+		if (optionsText != null) {
+			for (li in optionsText.split("\n")) {
 				var opt = parseOptionDesc(li);
 				for (name in opt.names)
 					options[name] = opt;
 			}
 		}
 
-		var patterns = [ for (li in usageMarker.matched(1).split("\n")) parsePattern(options, li.trim()) ];
+		var patterns = [ for (li in usageText.split("\n")) parsePattern(options, li.trim()) ];
 		return {
 			options : options,
 			patterns : patterns
@@ -356,7 +365,7 @@ class DocOpt {
 		var usage = DocstringParser.parse(doc);
 		// trace(usage);
 
-		// trace(args);
+		trace(args);
 		for (pat in usage.patterns) {
 			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
 			trace(pat.pattern);
