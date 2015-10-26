@@ -18,7 +18,7 @@ class Test {
 
 	public function new() {}
 
-	public function test_100_doctrim()
+	public function _test_100_doctrim()
 	{
 		var usage = "
 		Foo.
@@ -30,7 +30,7 @@ class Test {
 		Assert.equals("Foo.\n\nUsage:\n\tfoo [options]", DocOpt.doctrim(usage));  // TODO should end with \n ??
 	}
 
-	public function test_101_navalFate()
+	public function _test_101_navalFate()
 	{
 		var usage = "
 		Naval Fate.
@@ -68,7 +68,7 @@ class Test {
 			usage, ["--version"]);
 	}
 
-	public function test_102_extendedNavalFate()
+	public function _test_102_extendedNavalFate()
 	{
 		var usage = "
 		Naval Fate.
@@ -128,12 +128,15 @@ class Test {
 		}
 
 		var cnt = 0;
-		var usagePat = ~/^r"""((.|\n)+)"""$/;
+		var usagePat = ~/^r"""(.+)"""$/s;
 		var argsPat = ~/^\$ (.+)/;
 		while (lines.length > 0) {
-			var usage = "";
+			while (lines[0] == "")
+				readLine();
+			var ulines = [];
 			while (!StringTools.startsWith(lines[0], "$ "))
-				usage += readLine();
+				ulines.push(readLine());
+			var usage = ulines.join("\n");
 			if (!usagePat.match(usage))
 				throw 'Unexpected usage format: $usage';
 			usage = usagePat.matched(1);
@@ -144,9 +147,10 @@ class Test {
 					throw 'Unexpected args format: $argsLine';
 				var args = argsPat.matched(1).split(" ");
 
-				var expJson = "";
+				var elines = [];
 				while (lines[0] != "")
-					expJson += readLine();
+					elines.push(readLine());
+				var expJson = elines.join("\n");
 				var exp = null;
 				if (expJson == '"user-error"') {
 					// TODO
