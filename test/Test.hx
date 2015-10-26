@@ -2,7 +2,7 @@ import utest.*;
 import utest.ui.*;
 
 class Test {
-	static function assertMap<K>(exp:Map<K, Dynamic>, got:Map<K, Dynamic>, ?msg:String, ?pos:haxe.PosInfos)
+	static function assertKeyVals<K>(exp:Map<K, Dynamic>, got:Map<K, Dynamic>, ?msg:String, ?pos:haxe.PosInfos)
 	{
 		msg = msg == null ? "" : '$msg: ';
 		for (k in exp.keys()) {
@@ -11,9 +11,9 @@ class Test {
 		}
 	}
 
-	static function assert(exp, usage, args)
+	static inline function assert(exp, usage, args, ?pos:haxe.PosInfos)
 	{
-		assertMap(exp, DocOpt.docopt(usage, args));
+		assertKeyVals(exp, DocOpt.docopt(usage, args), null, pos);
 	}
 
 	public function new() {}
