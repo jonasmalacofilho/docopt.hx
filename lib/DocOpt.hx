@@ -320,7 +320,7 @@ class DocOpt {
 			return false;
 		trace("matching " + expr);
 		switch (expr) {
-		case EEmpty:
+		case EEmpty:  // NOOP
 		case EList(list):
 			for (e in list) {
 				if (!match(args, e, opts, res))
@@ -348,9 +348,17 @@ class DocOpt {
 			}
 			var opt = null;
 			for (_opt in opts) {
-				if (Lambda.exists(_opt.names, function (n) return n.startsWith(o))) {
+				if (Lambda.has(_opt.names, o)) {
 					opt = _opt;
 					break;
+				}
+			}
+			if (opt == null) {
+				for (_opt in opts) {
+					if (Lambda.exists(_opt.names, function (n) return n.startsWith(o))) {
+						opt = _opt;
+						break;
+					}
 				}
 			}
 			if (opt == null)
