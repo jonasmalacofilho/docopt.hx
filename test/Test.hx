@@ -153,7 +153,7 @@ class Test {
 				var argsLine = readLine();
 				if (!argsPat.match(argsLine))
 					throw 'Unexpected args format: $argsLine';
-				var args = argsPat.matched(1).split(" ");
+				var args = argsPat.matched(1).split(" ").slice(1);
 
 				var elines = [];
 				while (lines[0] != "")
@@ -161,13 +161,13 @@ class Test {
 				var expJson = elines.join("\n");
 				var exp = null;
 				if (expJson == '"user-error"') {
-					// TODO
+					assertFail(usage, args, makePos());
 				} else {
 					var obj = haxe.Json.parse(expJson);
 					exp = new Map();
 					for (k in Reflect.fields(obj))
 						exp[k] = Reflect.field(obj, k);
-					assert(exp, usage, args.slice(1), makePos());
+					assert(exp, usage, args, makePos());
 				}
 
 				cnt++;
