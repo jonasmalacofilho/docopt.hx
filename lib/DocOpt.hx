@@ -251,21 +251,21 @@ class DocstringParser {
 		if (usageText == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
 		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
-		// trace(usageText);
-		// trace(optionsText);
 
 		var options = new Map();
 		if (optionsText != null) {
-			for (li in optionsText.split("\n")) {
-				if (li.trim() != "") {
-					var opt = parseOptionDesc(li);
-					for (name in opt.names)
-						options[name] = opt;
-				}
+			var lines = optionsText.split("\n").map(StringTools.trim);
+			while (lines.length > 0) {
+				var desc = [lines.shift()];
+				while (lines.length > 0 && !lines[0].startsWith("-"))
+					desc.push(lines.shift());
+				var opt = parseOptionDesc(desc.join("\n"));
+				for (name in opt.names)
+					options[name] = opt;
 			}
 		}
 
-		var patterns = [ for (li in usageText.split("\n")) if (li.trim() != "") parsePattern(options, li) ];
+		var patterns = [ for (li in usageText.split("\n").map(StringTools.trim)) if (li != "") parsePattern(options, li) ];
 		return {
 			options : options,
 			patterns : patterns
@@ -383,6 +383,10 @@ class DocOpt {
 			return match(args, e, opts, res);
 		case EXor(a, b):
 			return tryMatch(args, a, opts, res) || tryMatch(args, b, opts, res);
+		case EElipsis(EOptionals(e)):
+			tryMatch(args, e, opts, res);
+			while (tryMatch(args, e, opts, res))
+				true;  // NOOP
 		case EElipsis(e):
 			// TODO deal (somewhere) with the multiple returned values
 			if (!match(args, e, opts, res))

@@ -160,6 +160,8 @@ class Test {
 					elines.push(readLine());
 				var expJson = elines.join("\n");
 				var exp = null;
+
+				trace(makePos());
 				if (expJson == '"user-error"') {
 					assertFail(usage, args, makePos());
 				} else {
