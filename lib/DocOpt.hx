@@ -348,7 +348,7 @@ class DocOpt {
 			}
 			var opt = null;
 			for (_opt in opts) {
-				if (Lambda.has(_opt.names, o)) {
+				if (Lambda.exists(_opt.names, function (n) return n.startsWith(o))) {
 					opt = _opt;
 					break;
 				}
