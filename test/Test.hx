@@ -2,6 +2,20 @@ import utest.*;
 import utest.ui.*;
 
 class Test {
+	static function assertMap<K>(exp:Map<K, Dynamic>, got:Map<K, Dynamic>, ?msg:String, ?pos:haxe.PosInfos)
+	{
+		msg = msg == null ? "" : '$msg: ';
+		for (k in exp.keys()) {
+			Assert.isTrue(got.exists(k), '${msg}missing key $k', pos);
+			Assert.same(exp[k], got[k], '${msg}for key $k, expected ${exp[k]} but got ${got[k]}', pos);
+		}
+	}
+
+	static function assert(exp, usage, args)
+	{
+		assertMap(exp, DocOpt.docopt(usage, args));
+	}
+
 	public function new() {}
 
 	public function test_100_doctrim()
@@ -13,7 +27,7 @@ class Test {
 			foo [options]
 
 		";
-		trace(DocOpt.doctrim(usage));
+		Assert.equals("Foo.\n\nUsage:\n\tfoo [options]", DocOpt.doctrim(usage));  // TODO should end with \n ??
 	}
 
 	public function test_101_navalFate()
@@ -36,14 +50,22 @@ class Test {
 			--moored      Moored (anchored) mine.
 			--drifting    Drifting mine.
 		";
-		trace(DocOpt.docopt(usage, ["ship", "new", "Guardian"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "--speed", "20"]));
-		trace(DocOpt.docopt(usage, ["ship", "shoot", "20", "40"]));
-		trace(DocOpt.docopt(usage, ["mine", "set", "5", "45"]));
-		trace(DocOpt.docopt(usage, ["mine", "remove", "15", "55"]));
-		trace(DocOpt.docopt(usage, ["-h"]));
-		trace(DocOpt.docopt(usage, ["--help"]));
-		trace(DocOpt.docopt(usage, ["--version"]));
+		assert(["ship"=>true, "new"=>true, "<name>"=>"Guardian"],
+			usage, "ship new Guardian".split(" "));
+		assert(["ship"=>true, "<name>"=>"Guardian", "move"=>true, "<x>"=>"10", "<y>"=>"50", "--speed"=>"20"],
+			usage, "ship Guardian move 10 50 --speed 20".split(" "));
+		assert(["ship"=>true, "shoot"=>true, "<x>"=>"20", "<y>"=>"40"],
+			usage, "ship shoot 20 40".split(" "));
+		assert(["mine"=>true, "set"=>true, "<x>"=>"5", "<y>"=>"45"],  // TODO remove=>false
+			usage, "mine set 5 45".split(" "));
+		assert(["mine"=>true, "remove"=>true, "<x>"=>"15", "<y>"=>"55"],  // TODO set=>false
+			usage, "mine remove 15 55".split(" "));
+		assert(["-h"=>true, "--help"=>true],
+			usage, ["-h"]);
+		assert(["-h"=>true, "--help"=>true],
+			usage, ["--help"]);
+		assert(["--version"=>true],
+			usage, ["--version"]);
 	}
 
 	public function test_102_extendedNavalFate()
@@ -66,12 +88,18 @@ class Test {
 			--moored         Moored (anchored) mine.
 			--drifting       Drifting mine.
 		";
-		trace(DocOpt.docopt(usage, ["-v"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "-s", "20"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "-k", "20"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "-p20"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "-e20"]));
-		trace(DocOpt.docopt(usage, ["ship", "Guardian", "move", "10", "50", "--speed=20"]));
+		assert(["--version"=>true, "-v"=>true],
+			usage, ["-v"]);
+		assert(["--speed"=>"20", "-s"=>"20", "-k"=>"20", "-p"=>"20", "-e"=>"20"],
+			usage, "ship Guardian move 10 50 -s 20".split(" "));
+		assert(["--speed"=>"20", "-s"=>"20", "-k"=>"20", "-p"=>"20", "-e"=>"20"],
+			usage, "ship Guardian move 10 50 -k 20".split(" "));
+		assert(["--speed"=>"20", "-s"=>"20", "-k"=>"20", "-p"=>"20", "-e"=>"20"],
+			usage, "ship Guardian move 10 50 -p20".split(" "));
+		assert(["--speed"=>"20", "-s"=>"20", "-k"=>"20", "-p"=>"20", "-e"=>"20"],
+			usage, "ship Guardian move 10 50 -e20".split(" "));
+		assert(["--speed"=>"20", "-s"=>"20", "-k"=>"20", "-p"=>"20", "-e"=>"20"],
+			usage, "ship Guardian move 10 50 --speed=20".split(" "));
 	}
 
 	public static function main()
