@@ -359,6 +359,7 @@ class DocOpt {
 		// trace(args);
 		for (pat in usage.patterns) {
 			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
+			trace(pat.pattern);
 			var res = new Map();
 			if (match(args.copy(), pat.pattern, res))
 				return res;

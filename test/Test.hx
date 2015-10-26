@@ -102,6 +102,69 @@ class Test {
 			usage, "ship Guardian move 10 50 --speed=20".split(" "));
 	}
 
+	public function test_999_testcases_docopt()
+	{
+		var res = haxe.Resource.getString("testcases.docopt");
+
+		var lines = res.split("\n").map(function (li) return li.split("#")[0]);
+		var lineNumber = 0;
+		function readLine()
+		{
+			if (lines.length == 0)
+				return null;
+			lineNumber++;
+			return lines.shift();
+		}
+
+		function makePos()
+		{
+			return {
+				fileName : "@testcases.docopt",
+				lineNumber : lineNumber,
+				className : "",
+				methodName : "",
+				customParams : null
+			}
+		}
+
+		var cnt = 0;
+		var usagePat = ~/^r"""((.|\n)+)"""$/;
+		var argsPat = ~/^\$ (.+)/;
+		while (lines.length > 0) {
+			var usage = "";
+			while (!StringTools.startsWith(lines[0], "$ "))
+				usage += readLine();
+			if (!usagePat.match(usage))
+				throw 'Unexpected usage format: $usage';
+			usage = usagePat.matched(1);
+
+			while (lines.length > 0 && StringTools.startsWith(lines[0], "$ ")) {
+				var argsLine = readLine();
+				if (!argsPat.match(argsLine))
+					throw 'Unexpected args format: $argsLine';
+				var args = argsPat.matched(1).split(" ");
+
+				var expJson = "";
+				while (lines[0] != "")
+					expJson += readLine();
+				var exp = null;
+				if (expJson == '"user-error"') {
+					// TODO
+				} else {
+					var obj = haxe.Json.parse(expJson);
+					exp = new Map();
+					for (k in Reflect.fields(obj))
+						exp[k] = Reflect.field(obj, k);
+					assert(exp, usage, args, makePos());
+				}
+
+				cnt++;
+				readLine();
+			}
+		}
+		trace('Total test cases from testcases.docopt: $cnt');
+	}
+
 	public static function main()
 	{
 		var runner = new Runner();

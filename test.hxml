@@ -3,4 +3,5 @@
 -cp test
 -cp lib
 -lib utest
+-resource test/docopt.py/testcases.docopt@testcases.docopt
 
