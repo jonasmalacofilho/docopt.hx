@@ -258,11 +258,11 @@ class DocstringParser {
 }
 
 class DocOpt {
-	static function tryMatch(args:Array<String>, expr:Expr, res:Map<String,Dynamic>):Bool
+	static function tryMatch(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		var _a = args.copy();
 		var _r = new Map();
-		if (match(_a, expr, _r)) {
+		if (match(_a, expr, opts, _r)) {
 			while (args.length > _a.length)
 				args.shift();
 			for (k in _r.keys())
@@ -272,7 +272,7 @@ class DocOpt {
 		return false;
 	}
 
-	static function match(args:Array<String>, expr:Expr, res:Map<String,Dynamic>):Bool
+	static function match(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		if (!expr.match(EOptionals(_)) && args.length < 1)
 			return false;
@@ -280,7 +280,7 @@ class DocOpt {
 		switch (expr) {
 		case EList(list):
 			for (e in list) {
-				if (!match(args, e, res))
+				if (!match(args, e, opts, res))
 					return false;
 			}
 			if (args.length != 0)
@@ -322,16 +322,16 @@ class DocOpt {
 			for (n in opt.names)
 				res[n] = untyped p != null ? p : true;
 		case EOptionals(e):
-			tryMatch(args, e, res);
+			tryMatch(args, e, opts, res);
 		case ERequired(e):
-			return match(args, e, res);
+			return match(args, e, opts, res);
 		case EXor(a, b):
-			return tryMatch(args, a, res) || tryMatch(args, b, res);
+			return tryMatch(args, a, opts, res) || tryMatch(args, b, opts, res);
 		case EElipsis(e):
 			// TODO deal (somewhere) with the multiple returned values
-			if (!match(args, e, res))
+			if (!match(args, e, opts, res))
 				return false;
-			while (match(args, e, res))
+			while (match(args, e, opts, res))
 				true;  // NOOP
 		}
 		return true;
@@ -370,7 +370,7 @@ class DocOpt {
 			// trace("pattern " + Lambda.indexOf(usage.patterns, pat));
 			trace(pat.pattern);
 			var res = new Map();
-			if (match(args.copy(), pat.pattern, res))
+			if (match(args.copy(), pat.pattern, usage.options, res))
 				return res;
 		}
 
