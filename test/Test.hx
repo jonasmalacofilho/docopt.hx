@@ -13,12 +13,20 @@ class Test {
 
 	static inline function assert(exp, usage, args, ?pos:haxe.PosInfos)
 	{
-		assertKeyVals(exp, DocOpt.docopt(usage, args), null, pos);
+		var opts = DocOpt.docopt(usage, args);
+		Assert.notNull(opts, "no usage pattern matched", pos);
+		if (opts != null)
+			assertKeyVals(exp, opts, pos);
+	}
+
+	static inline function assertFail(usage, args, ?pos:haxe.PosInfos)
+	{
+		Assert.isNull(DocOpt.docopt(usage, args));
 	}
 
 	public function new() {}
 
-	public function _test_100_doctrim()
+	public function test_100_doctrim()
 	{
 		var usage = "
 		Foo.
@@ -30,7 +38,7 @@ class Test {
 		Assert.equals("Foo.\n\nUsage:\n\tfoo [options]", DocOpt.doctrim(usage));  // TODO should end with \n ??
 	}
 
-	public function _test_101_navalFate()
+	public function test_101_navalFate()
 	{
 		var usage = "
 		Naval Fate.
@@ -68,7 +76,7 @@ class Test {
 			usage, ["--version"]);
 	}
 
-	public function _test_102_extendedNavalFate()
+	public function test_102_extendedNavalFate()
 	{
 		var usage = "
 		Naval Fate.
@@ -159,7 +167,7 @@ class Test {
 					exp = new Map();
 					for (k in Reflect.fields(obj))
 						exp[k] = Reflect.field(obj, k);
-					assert(exp, usage, args, makePos());
+					assert(exp, usage, args.slice(1), makePos());
 				}
 
 				cnt++;

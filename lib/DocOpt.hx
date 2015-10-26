@@ -2,8 +2,8 @@ using StringTools;
 
 enum Element {
 	LArgument(arg:String);
-	LOption(opt:Option);
 	LCommand(cmd:String);
+	LOption;
 }
 
 enum Expr {
@@ -13,6 +13,7 @@ enum Expr {
 	EXor(a:Expr, b:Expr);
 	EElipsis(e:Expr);
 	EList(list:Array<Expr>);
+	EEmpty;
 }
 
 typedef Pattern = {
@@ -38,14 +39,14 @@ enum Token {
 	TPipe;
 	TElipsis;
 	TArgument(arg:String);
-	TOption(opt:String);
+	TOption(?opt:String);
 	TCommand(cmd:String);
 }
 
 class DocstringParser {
 	static function tokensOf(li:String)
 	{
-		var tokenPattern = ~/([()|[\]]|(\.\.\.)|[^ \t()|.[\]]+)[ \t]*/;
+		var tokenPattern = ~/(\[options\]|[()|[\]]|(\.\.\.)|[^ \t()|.[\]]+)[ \t]*/;
 		var tokens = new List();
 		while (tokenPattern.match(li)) {
 			li = tokenPattern.matchedRight();
@@ -56,6 +57,7 @@ class DocstringParser {
 				case ")": TCloseParens;
 				case "|": TPipe;
 				case "...": TElipsis;
+				case "[options]": TOption(null);
 				case w:
 					if (!w.startsWith("-")) {
 						if ((w.startsWith("<") && w.endsWith(">")) || (w.toUpperCase() == w))
@@ -106,6 +108,9 @@ class DocstringParser {
 
 	static function parsePattern(options:Map<String,Option>, li:String):Pattern
 	{
+		li = li.trim();
+		if (li == "")
+			return null;
 		var tokens = tokensOf(li);
 		var rewindBuf = new List();
 		function pop()
@@ -140,6 +145,9 @@ class DocstringParser {
 				var e = switch (t) {
 					case TArgument(a): EElement(LArgument(a));
 					case TCommand(c): EElement(LCommand(c));
+					case TOption(null):
+						// TODO only allow if docstring has options section
+						EElement(LOption);
 					case TOption(o):
 						var p = null;
 						if (o.startsWith("--")) {
@@ -168,8 +176,8 @@ class DocstringParser {
 						}
 						var opt = options[o];
 						if (o == null)
-							opt = { names : [o], hasParam : p != null };
-						EElement(LOption(opt));
+							options[o] = opt = { names : [o], hasParam : p != null };
+						EElement(LOption);
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
 						var n = pop();
@@ -202,7 +210,11 @@ class DocstringParser {
 				list.push(e);
 				t = n;
 			}
-			return list.length == 1 ? list[0] : EList(list);
+			return switch (list) {
+				case []: EEmpty;
+				case [e]: e;
+				case li: EList(li);
+				}
 		}
 		function executable()
 		{
@@ -221,35 +233,39 @@ class DocstringParser {
 		return pattern();
 	}
 
-	static function getSection(doc:String, marker:String)
-	{
-		var pat = new EReg(marker, "i");
-		if (!pat.match(doc))
-			return null;
-		var vblank = ~/\n[ \t]*\n/;
-		if (vblank.match(pat.matchedRight()))
-			return vblank.matchedLeft();
-		else
-			return pat.matchedRight();
-	}
-
 	public static function parse(doc:String):Usage
 	{
+		function getSection(doc:String, marker:String)
+		{
+			var pat = new EReg(marker, "i");
+			if (!pat.match(doc))
+				return null;
+			var vblank = ~/\n[ \t]*\n/;
+			if (vblank.match(pat.matchedRight()))
+				return vblank.matchedLeft();
+			else
+				return pat.matchedRight();
+		}
+
 		var usageText = getSection(doc, "usage:");
 		if (usageText == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
 		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
+		// trace(usageText);
+		// trace(optionsText);
 
 		var options = new Map();
 		if (optionsText != null) {
 			for (li in optionsText.split("\n")) {
-				var opt = parseOptionDesc(li);
-				for (name in opt.names)
-					options[name] = opt;
+				if (li.trim() != "") {
+					var opt = parseOptionDesc(li);
+					for (name in opt.names)
+						options[name] = opt;
+				}
 			}
 		}
 
-		var patterns = [ for (li in usageText.split("\n")) parsePattern(options, li.trim()) ];
+		var patterns = [ for (li in usageText.split("\n")) if (li.trim() != "") parsePattern(options, li) ];
 		return {
 			options : options,
 			patterns : patterns
@@ -274,10 +290,12 @@ class DocOpt {
 
 	static function match(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
-		if (!expr.match(EOptionals(_)) && args.length < 1)
+		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
 			return false;
-		// trace(expr);
 		switch (expr) {
+		case EEmpty:
+			if (args.length != 0)
+				return false;
 		case EList(list):
 			for (e in list) {
 				if (!match(args, e, opts, res))
@@ -291,7 +309,7 @@ class DocOpt {
 			if (args.shift() != name)
 				return false;
 			res[name] = true;
-		case EElement(LOption(opt)):
+		case EElement(LOption):
 			var r = null;
 			var o = args.shift();
 			var p = null;
@@ -305,7 +323,14 @@ class DocOpt {
 				r = o.substr(2);
 				o = o.substr(0, 2);
 			}
-			if (!Lambda.has(opt.names, o))
+			var opt = null;
+			for (_opt in opts) {
+				if (Lambda.has(_opt.names, o)) {
+					opt = _opt;
+					break;
+				}
+			}
+			if (opt == null)
 				return false;
 			if (p == null && opt.hasParam) {
 				if (r != null) {
@@ -374,7 +399,7 @@ class DocOpt {
 				return res;
 		}
 
-		return new Map();
+		return null;
 	}
 }
 
