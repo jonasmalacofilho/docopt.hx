@@ -155,8 +155,6 @@ class DocstringParser {
 							if (eqi > -1) {
 								p = o.substr(eqi + 1);
 								o = o.substr(0, eqi);
-								if (!~/^<.+>$/.match(p) && p.toUpperCase() != p)
-									throw 'Docstring: bad parameter format $p';
 								if (hasParam(o) == false)
 									throw 'Docstring: option $o does not expect param';
 							}
