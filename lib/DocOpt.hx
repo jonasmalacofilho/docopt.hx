@@ -248,10 +248,10 @@ class DocstringParser {
 			return pat.replace(section, "");
 		}
 
-		var usageText = getSection(doc, "^usage:");
+		var usageText = getSection(doc, "usage:");
 		if (usageText == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
-		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "^options:");
+		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
 
 		var options = new Map();
 		if (optionsText != null) {
