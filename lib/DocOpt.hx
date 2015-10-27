@@ -235,22 +235,25 @@ class DocstringParser {
 
 	public static function parse(doc:String):Usage
 	{
+		// everything from `marker` to a visibly blank line,
+		// stripped of all `marker` strings in other lines too
 		function getSection(doc:String, marker:String)
 		{
-			var pat = new EReg(marker, "i");
+			var pat = new EReg(marker, "igm");
 			if (!pat.match(doc))
 				return null;
 			var vblank = ~/\n[ \t]*\n/;
-			if (vblank.match(pat.matchedRight()))
-				return vblank.matchedLeft();
-			else
-				return pat.matchedRight();
+			var section = if (vblank.match(pat.matchedRight()))
+					vblank.matchedLeft();
+				else
+					pat.matchedRight();
+			return pat.replace(section, "");
 		}
 
-		var usageText = getSection(doc, "usage:");
+		var usageText = getSection(doc, "^usage:");
 		if (usageText == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
-		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
+		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "^options:");
 
 		var options = new Map();
 		if (optionsText != null) {
@@ -422,6 +425,7 @@ class DocOpt {
 
 	public static function docopt(doc:String, args:Array<String>, help=true, ?version:String):Map<String,Dynamic>
 	{
+		var doc = doctrim(doc);
 		var usage = DocstringParser.parse(doc);
 		// trace("usage " + usage);
 		trace("options " + usage.options);
