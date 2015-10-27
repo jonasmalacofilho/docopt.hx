@@ -66,7 +66,7 @@ class Parser {
 		return opt;
 	}
 
-	static function parsePattern(options:Map<String,Option>, li:String):Pattern
+	static function parsePattern(li:String, usage:Usage)
 	{
 		li = li.trim();
 		if (li == "")
@@ -93,9 +93,9 @@ class Parser {
 		}
 		function hasParam(o)
 		{
-			if (!options.exists(o))
+			if (!usage.options.exists(o))
 				return null;
-			return options[o].hasParam;
+			return usage.options[o].hasParam;
 		}
 		function expr(?breakOn)
 		{
@@ -103,8 +103,15 @@ class Parser {
 			var t = pop();
 			while (t != null) {
 				var e = switch (t) {
-					case TArgument(a): EElement(LArgument(a));
-					case TCommand(c): EElement(LCommand(c));
+					case TArgument(a):
+						var arg = usage.arguments[a];
+						if (arg == null)
+							usage.arguments[a] = arg = { name : a };
+						EElement(LArgument(arg));
+					case TCommand(cmd):
+						if (!usage.commands.exists(cmd))
+							usage.commands[cmd] = cmd;
+						EElement(LCommand(cmd));
 					case TOption(null):
 						// TODO only allow if docstring has options section
 						EOptionals(EElement(LOption));
@@ -132,9 +139,9 @@ class Parser {
 								case _: throw 'Docstring: missing parameter for $o';
 								}
 						}
-						var opt = options[o];
+						var opt = usage.options[o];
 						if (o == null)
-							options[o] = opt = { names : [o], hasParam : p != null };
+							usage.options[o] = opt = { names : [o], hasParam : p != null };
 						EElement(LOption);
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
@@ -188,7 +195,7 @@ class Parser {
 				pattern : expr()
 			}
 		}
-		return pattern();
+		usage.patterns.push(pattern());
 	}
 
 	public static function parse(doc:String):Usage
@@ -218,23 +225,32 @@ class Parser {
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
 		var optionLines = getSection("options:");
 
-		var options = new Map();
+		var usage = {
+			arguments : new Map(),
+			commands : new Map(),
+			options : new Map(),
+			patterns : [],
+			hasOptionsSection : false
+		};
+
 		if (optionLines != null) {
+			usage.hasOptionsSection = true;
 			while (optionLines.length > 0) {
 				var desc = [optionLines.shift()];
 				while (optionLines.length > 0 && !optionLines[0].startsWith("-"))
 					desc.push(optionLines.shift());
 				var opt = parseOptionDesc(desc.join("\n"));
 				for (name in opt.names)
-					options[name] = opt;
+					usage.options[name] = opt;
 			}
 		}
 
-		var patterns = [ for (li in usageLines) if (li != "") parsePattern(options, li) ];
-		return {
-			options : options,
-			patterns : patterns
-		};
+		for (li in usageLines)
+			if (li != "")
+				parsePattern(li, usage);
+
+		// trace(usage);
+		return usage;
 	}
 }
 
