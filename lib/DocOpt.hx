@@ -291,7 +291,8 @@ class DocOpt {
 			switch (expr) {
 			case EEmpty: return;
 			case EList(li): for (e in li) addToRes(e);
-			case EElement(LArgument(n)), EElement(LCommand(n)): res[n] = false;
+			case EElement(LArgument(n)): res[n] = null;
+			case EElement(LCommand(n)): res[n] = false;
 			case EElement(LOption): return;
 			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
 			case EXor(a, b): addToRes(a); addToRes(b);
