@@ -102,7 +102,6 @@ class DocstringParser {
 				throw 'Docstring: bad option name $n';
 			}
 		}
-		// trace(opt);
 		return opt;
 	}
 
@@ -233,40 +232,43 @@ class DocstringParser {
 
 	public static function parse(doc:String):Usage
 	{
-		// everything from `marker` to a visibly blank line,
-		// stripped of all `marker` strings in other lines too
-		function getSection(doc:String, marker:String)
+		// a section is everything from `marker` to a visibly blank line,
+		// stripped of all `marker` strings in other lines too;
+		// this moves forward in `doc`
+		function getSection(marker:String)
 		{
 			var pat = new EReg(marker, "igm");
 			if (!pat.match(doc))
 				return null;
 			var vblank = ~/\n[ \t]*\n/;
-			var section = if (vblank.match(pat.matchedRight()))
+			doc = if (vblank.match(pat.matchedRight()))
 					vblank.matchedLeft();
 				else
 					pat.matchedRight();
-			return pat.replace(section, "");
+			var section = doc.split("\n");
+			section = section.map(function (li) return pat.match(li) ? pat.matchedRight() : li);
+			section = section.map(StringTools.trim);
+			return section;
 		}
 
-		var usageText = getSection(doc, "usage:");
-		if (usageText == null)
+		var usageLines = getSection("usage:");
+		if (usageLines == null)
 			throw 'Docstring: missing "usage:" (case insensitive) marker';
-		var optionsText = getSection(doc.substr(doc.indexOf(usageText) + usageText.length), "options:");
+		var optionLines = getSection("options:");
 
 		var options = new Map();
-		if (optionsText != null) {
-			var lines = optionsText.split("\n").map(StringTools.trim);
-			while (lines.length > 0) {
-				var desc = [lines.shift()];
-				while (lines.length > 0 && !lines[0].startsWith("-"))
-					desc.push(lines.shift());
+		if (optionLines != null) {
+			while (optionLines.length > 0) {
+				var desc = [optionLines.shift()];
+				while (optionLines.length > 0 && !optionLines[0].startsWith("-"))
+					desc.push(optionLines.shift());
 				var opt = parseOptionDesc(desc.join("\n"));
 				for (name in opt.names)
 					options[name] = opt;
 			}
 		}
 
-		var patterns = [ for (li in usageText.split("\n").map(StringTools.trim)) if (li != "") parsePattern(options, li) ];
+		var patterns = [ for (li in usageLines) if (li != "") parsePattern(options, li) ];
 		return {
 			options : options,
 			patterns : patterns
