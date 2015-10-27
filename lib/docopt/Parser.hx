@@ -113,7 +113,8 @@ class Parser {
 							usage.commands[cmd] = cmd;
 						EElement(LCommand(cmd));
 					case TOption(null):
-						// TODO only allow if docstring has options section
+						if (!usage.hasOptionsSection)
+							throw 'Docstring: [options] requires option descriptions section';
 						EOptionals(EElement(LOption));
 					case TOption(o):
 						var p = null;
