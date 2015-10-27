@@ -241,11 +241,12 @@ class DocstringParser {
 			if (!pat.match(doc))
 				return null;
 			var vblank = ~/\n[ \t]*\n/;
-			doc = if (vblank.match(pat.matchedRight()))
+			var match = if (vblank.match(pat.matchedRight()))
 					vblank.matchedLeft();
 				else
 					pat.matchedRight();
-			var section = doc.split("\n");
+			doc = doc.substr(doc.indexOf(match));
+			var section = match.split("\n");
 			section = section.map(function (li) return pat.match(li) ? pat.matchedRight() : li);
 			section = section.map(StringTools.trim);
 			return section;
