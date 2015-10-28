@@ -196,7 +196,7 @@ class Parser {
 		{
 			return switch (pop()) {
 				case TCommand(exec): exec;
-				case _: rewind();
+				case a: throw 'Docstring: bad executable name $a';
 			}
 		}
 		function pattern()
@@ -259,7 +259,6 @@ class Parser {
 		for (li in usageLines)
 			parsePattern(li, usage);
 
-		// trace(usage);
 		return usage;
 	}
 }
