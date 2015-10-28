@@ -17,7 +17,6 @@ class Parser {
 		var tokenPattern = ~/(\[options\]|[()|[\]]|(\.\.\.)|[^ \t()|.[\]]+)[ \t]*/;
 		var tokens = new List();
 		while (tokenPattern.match(li)) {
-			li = tokenPattern.matchedRight();
 			var t = switch (tokenPattern.matched(1)) {
 				case "[": TOpenBracket;
 				case "]": TCloseBracket;
@@ -35,6 +34,7 @@ class Parser {
 						TCommand(w);
 				}
 			tokens.add(t);
+			li = tokenPattern.matchedRight();
 		}
 		return tokens;
 	}
