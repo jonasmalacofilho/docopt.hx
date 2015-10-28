@@ -18,9 +18,9 @@ class Matcher {
 			switch (expr) {
 			case EEmpty: return;
 			case EList(li): for (e in li) addToRes(e);
-			case EElement(LArgument(arg)): res[arg.name] = null;
-			case EElement(LCommand(cmd)): res[cmd] = false;
-			case EElement(LOption): return;
+			case EArgument(arg): res[arg.name] = null;
+			case ECommand(cmd): res[cmd] = false;
+			case EOption: return;
 			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
 			case EXor(a, b): addToRes(a); addToRes(b);
 			}
@@ -57,13 +57,13 @@ class Matcher {
 				if (!matchExpr(args, e, opts, res))
 					return false;
 			}
-		case EElement(LArgument(arg)):
+		case EArgument(arg):
 			res[arg.name] = args.shift();
-		case EElement(LCommand(name)):
+		case ECommand(name):
 			if (args.shift() != name)
 				return false;
 			res[name] = true;
-		case EElement(LOption):
+		case EOption:
 			var r = null;
 			var o = args.shift();
 			var p = null;

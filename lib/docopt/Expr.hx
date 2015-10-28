@@ -13,16 +13,12 @@ typedef Option = {
 	// TODO manyVals : Bool
 }
 
-enum Element {
-	LArgument(arg:Argument);
-	LCommand(cmd:Command);
-	LOption;  // TODO (opt:Option)
-}
-
 enum Expr {
 	EEmpty;
 	EList(list:Array<Expr>);
-	EElement(ele:Element);
+	EArgument(arg:Argument);
+	ECommand(cmd:Command);
+	EOption;  // TODO (opt:Option)
 	EOptionals(e:Expr);
 	ERequired(e:Expr);
 	EXor(a:Expr, b:Expr);

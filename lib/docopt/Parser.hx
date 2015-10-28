@@ -107,15 +107,15 @@ class Parser {
 						var arg = usage.arguments[a];
 						if (arg == null)
 							usage.arguments[a] = arg = { name : a };
-						EElement(LArgument(arg));
+						EArgument(arg);
 					case TCommand(cmd):
 						if (!usage.commands.exists(cmd))
 							usage.commands[cmd] = cmd;
-						EElement(LCommand(cmd));
+						ECommand(cmd);
 					case TOption(null):
 						if (!usage.hasOptionsSection)
 							throw 'Docstring: [options] requires option descriptions section';
-						EOptionals(EElement(LOption));
+						EOptionals(EOption);
 					case TOption(o):
 						var p = null;
 						if (o.startsWith("--")) {
@@ -143,7 +143,7 @@ class Parser {
 						var opt = usage.options[o];
 						if (o == null)
 							usage.options[o] = opt = { names : [o], hasParam : p != null };
-						EElement(LOption);
+						EOption;
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
 						var n = pop();
