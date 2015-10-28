@@ -25,7 +25,7 @@ class Parser {
 				case ")": TCloseParens;
 				case "|": TPipe;
 				case "...": TElipsis;
-				case "[options]": TOption(null);
+				case _.toLowerCase() => "[options]": TOption(null);
 				case w:
 					if (!w.startsWith("-")) {
 						if ((w.startsWith("<") && w.endsWith(">")) || (w.toUpperCase() == w))
