@@ -5,6 +5,13 @@ import docopt.Token;
 using StringTools;
 
 class Parser {
+	static var isKeyVal = ~/^([^=]+)=(.+)$/;
+	static var isArgument = ~/^((<.+?>)|([A-Z0-9_-]+))$/;
+	static var isLongOption = ~/^--.+$/;
+	static var isShortOption = ~/^-[^-]$/;
+	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
+	static var isDefault = ~/\[default:([^\]]+)\]/i;
+
 	static function tokensOf(li:String)
 	{
 		var tokenPattern = ~/(\[options\]|[()|[\]]|(\.\.\.)|[^ \t()|.[\]]+)[ \t]*/;
@@ -48,26 +55,24 @@ class Parser {
 			defaultValue : null
 		};
 		for (n in names) {
-			var eqi = n.indexOf("=");
-			if (eqi > -1) {
+			if (isKeyVal.match(n)) {
 				opt.hasParam = true;
-				n = n.substr(0, eqi);
+				n = isKeyVal.matched(1);
 			}
-			if (~/^-[^-]$/.match(n) || ~/^--.+$/.match(n)) {
+			if (isShortOption.match(n) || isLongOption.match(n)) {
 				opt.names.push(n);
-			} else if (~/^<.+?>$/.match(n) || n.toUpperCase() == n) {
+			} else if (isArgument.match(n)) {
 				opt.hasParam = true;
-			} else if (~/^-[^-].+$/.match(n)) {
-				opt.names.push(n.substr(0, 2));
+			} else if (isShortOptionCat.match(n)) {
+				opt.names.push(isShortOptionCat.matched(1));
 				opt.hasParam = true;
 			} else {
 				throw 'Docstring: bad option name $n';
 			}
 		}
 
-		var defPat = ~/\[default:(.+)\]/gi;
-		if (defPat.match(desc))
-			opt.defaultValue = defPat.matched(1).trim();
+		if (isDefault.match(desc))
+			opt.defaultValue = isDefault.matched(1).trim();
 
 		return opt;
 	}
@@ -124,21 +129,19 @@ class Parser {
 						EOptionals(EOption);
 					case TOption(o):
 						var p = null;
-						if (o.startsWith("--")) {
-							var eqi = o.indexOf("=");
-							if (eqi > -1) {
-								p = o.substr(eqi + 1);
-								o = o.substr(0, eqi);
+						if (isLongOption.match(o)) {
+							if (isKeyVal.match(o)) {
+								o = isKeyVal.matched(1);
+								p = isKeyVal.matched(2);
 								if (hasParam(o) == false)
 									throw 'Docstring: option $o does not expect param';
 							}
-						} else if (o.length > 2) {
-							var s = o.substr(0, 2);
-							if (hasParam(s))
-								p = o.substr(2);
+						} else if (isShortOptionCat.match(o)) {
+							o = isShortOptionCat.matched(1);
+							if (hasParam(o))
+								p = isShortOptionCat.matched(2);
 							else
-								push(TOption("-" + o.substr(2)));
-							o = s;
+								push(TOption("-" + isShortOptionCat.matched(2)));
 						}
 						if (p == null && hasParam(o)) {
 							p = switch (pop()) {
@@ -226,7 +229,7 @@ class Parser {
 				else
 					pat.matchedRight();
 			doc = doc.substr(doc.indexOf(match));
-			var section = match.split("\n");
+			var section = match.trim().split("\n");
 			section = section.map(function (li) return pat.match(li) ? pat.matchedRight() : li);
 			section = section.map(StringTools.trim);
 			return section;
@@ -251,15 +254,14 @@ class Parser {
 				var desc = [optionLines.shift()];
 				while (optionLines.length > 0 && !optionLines[0].startsWith("-"))
 					desc.push(optionLines.shift());
-				var opt = parseOptionDesc(desc.join("\n"));
+				var opt = parseOptionDesc(desc.join("\n").trim());
 				for (name in opt.names)
 					usage.options[name] = opt;
 			}
 		}
 
 		for (li in usageLines)
-			if (li != "")
-				parsePattern(li, usage);
+			parsePattern(li, usage);
 
 		// trace(usage);
 		return usage;
