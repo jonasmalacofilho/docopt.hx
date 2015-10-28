@@ -10,7 +10,7 @@ class Parser {
 	static var isLongOption = ~/^--.+$/;
 	static var isShortOption = ~/^-[^-]$/;
 	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
-	static var isDefault = ~/\[default:([^\]]+)\]/i;
+	static var hasDefault = ~/\[default:([^\]]+)\]/i;
 
 	static function tokensOf(li:String)
 	{
@@ -67,8 +67,8 @@ class Parser {
 			}
 		}
 
-		if (isDefault.match(desc))
-			opt.defaultValue = isDefault.matched(1).trim();
+		if (hasDefault.match(desc))
+			opt.defaultValue = hasDefault.matched(1).trim();
 
 		return opt;
 	}
