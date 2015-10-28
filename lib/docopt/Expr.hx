@@ -9,7 +9,8 @@ typedef Command = String;
 
 typedef Option = {
 	names : Array<String>,
-	hasParam : Bool
+	hasParam : Bool,
+	defaultValue : Null<String>,
 	// TODO manyVals : Bool
 }
 

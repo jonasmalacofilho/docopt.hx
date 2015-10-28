@@ -40,11 +40,12 @@ class Parser {
 	{
 		var split = li.trim().split("  ");
 		var names = ~/[ ]|(,[ ]?)/g.split(split[0]);
-		var desc = split[1];
+		var desc = split.slice(1).join(" ").replace("\n", " ");
 
 		var opt = {
 			names : [],
-			hasParam : false
+			hasParam : false,
+			defaultValue : null
 		};
 		for (n in names) {
 			var eqi = n.indexOf("=");
@@ -63,6 +64,11 @@ class Parser {
 				throw 'Docstring: bad option name $n';
 			}
 		}
+
+		var defPat = ~/\[default:(.+)\]/gi;
+		if (defPat.match(desc))
+			opt.defaultValue = defPat.matched(1).trim();
+
 		return opt;
 	}
 
@@ -141,8 +147,13 @@ class Parser {
 								}
 						}
 						var opt = usage.options[o];
-						if (o == null)
-							usage.options[o] = opt = { names : [o], hasParam : p != null };
+						if (opt == null) {
+							usage.options[o] = opt = {
+								names : [o],
+								hasParam : p != null,
+								defaultValue : null
+							};
+						}
 						EOption;
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);

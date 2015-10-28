@@ -114,7 +114,7 @@ class Test {
 	{
 		var res = haxe.Resource.getString("testcases.docopt");
 
-		var lines = res.split("\n").map(function (li) return li.split("#")[0]);
+		var lines = res.split("\n").map(function (li) return StringTools.rtrim(li.split("#")[0]));
 		var lineNumber = 0;
 		function readLine()
 		{

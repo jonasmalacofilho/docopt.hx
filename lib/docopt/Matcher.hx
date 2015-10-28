@@ -8,7 +8,7 @@ class Matcher {
 	{
 		var res = new Map<String,Dynamic>();
 		for (o in usage.options) {
-			var init = o.hasParam ? null : false;
+			var init:Dynamic = o.hasParam ? o.defaultValue : false;
 			for (n in o.names)
 				res[n] = init;
 		}
