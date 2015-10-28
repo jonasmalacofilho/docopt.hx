@@ -6,7 +6,7 @@ using StringTools;
 
 class Parser {
 	static var isKeyVal = ~/^([^=]+)=(.+)$/;
-	static var isArgument = ~/^((<.+?>)|([A-Z0-9_-]+))$/;
+	static var isArgument = ~/^((<.+?>)|([A-Z0-9_][A-Z0-9_-]*))$/;
 	static var isLongOption = ~/^--.+$/;
 	static var isShortOption = ~/^-[^-]$/;
 	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
@@ -27,16 +27,12 @@ class Parser {
 				case "...": TElipsis;
 				case _.toLowerCase() => "[options]": TOption(null);
 				case w:
-					if (!w.startsWith("-")) {
-						if ((w.startsWith("<") && w.endsWith(">")) || (w.toUpperCase() == w))
-							TArgument(w);
-						else
-							TCommand(w);
-					} else if (w != "-" && w != "--") {
+					if (isLongOption.match(w) || isShortOption.match(w) || isShortOptionCat.match(w))
 						TOption(w);
-					} else {
+					else if (isArgument.match(w))
+						TArgument(w);
+					else
 						TCommand(w);
-					}
 				}
 			tokens.add(t);
 		}
