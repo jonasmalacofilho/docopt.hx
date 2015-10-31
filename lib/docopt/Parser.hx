@@ -24,7 +24,7 @@ class Parser {
 				case ")": TCloseParens;
 				case "|": TPipe;
 				case "...": TElipsis;
-				case _.toLowerCase() => "[options]": TOption(null);
+				case _.toLowerCase() => "[options]": TOptionsShortcut;
 				case w:
 					if (isLongOption.match(w) || isShortOption.match(w) || isShortOptionCat.match(w))
 						TOption(w);
@@ -119,7 +119,7 @@ class Parser {
 						if (!usage.commands.exists(cmd))
 							usage.commands[cmd] = cmd;
 						ECommand(cmd);
-					case TOption(null):
+					case TOptionsShortcut:
 						if (!usage.hasOptionsSection)
 							throw 'Docstring: [options] requires option descriptions section';
 						EOptionals(EOption);
