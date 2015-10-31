@@ -8,7 +8,8 @@ enum Token {
 	TPipe;
 	TElipsis;
 	TArgument(arg:String);
-	TOption(opt:String);
+	TLongOption(opt:String, ?val:String);
+	TShortOption(opt:String, ?rest:String);
 	TOptionsShortcut;
 	TCommand(cmd:String);
 }

@@ -5,10 +5,9 @@ import docopt.Token;
 using StringTools;
 
 class Parser {
-	static var isKeyVal = ~/^([^=]+)=(.+)$/;
 	static var isArgument = ~/^((<.+?>)|([^a-z]*[A-Z]+[^a-z]*))$/;
-	static var isLongOption = ~/^--.+$/;
-	static var isShortOption = ~/^-[^-]$/;
+	static var isLongOption = ~/^(--.+?)(=(.+))?$/;
+	static var isShortOption = ~/^(-[^-])$/;
 	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
 	static var hasDefault = ~/\[default:([^\]]+)\]/i;
 
@@ -26,8 +25,12 @@ class Parser {
 				case "...": TElipsis;
 				case _.toLowerCase() => "[options]": TOptionsShortcut;
 				case w:
-					if (isLongOption.match(w) || isShortOption.match(w) || isShortOptionCat.match(w))
-						TOption(w);
+					if (isLongOption.match(w))
+						TLongOption(isLongOption.matched(1), isLongOption.matched(3));
+					else if (isShortOption.match(w))
+						TShortOption(isShortOption.matched(0), null);
+					else if (isShortOptionCat.match(w))
+						TShortOption(isShortOptionCat.matched(1), isShortOptionCat.matched(2));
 					else if (isArgument.match(w))
 						TArgument(w);
 					else
@@ -51,16 +54,16 @@ class Parser {
 			defaultValue : null
 		};
 		for (n in names) {
-			if (isKeyVal.match(n)) {
+			if (isLongOption.match(n)) {
+				if (isLongOption.matched(3) != null)
+					opt.hasParam = true;
+				opt.names.push(isLongOption.matched(1));
+			} else if (isShortOptionCat.match(n)) {
 				opt.hasParam = true;
-				n = isKeyVal.matched(1);
-			}
-			if (isShortOption.match(n) || isLongOption.match(n)) {
+				opt.names.push(isShortOptionCat.matched(1));
+			} else if (isShortOption.match(n)) {
 				opt.names.push(n);
 			} else if (isArgument.match(n)) {
-				opt.hasParam = true;
-			} else if (isShortOptionCat.match(n)) {
-				opt.names.push(isShortOptionCat.matched(1));
 				opt.hasParam = true;
 			} else {
 				throw 'Docstring: bad option name $n';
@@ -123,33 +126,25 @@ class Parser {
 						if (!usage.hasOptionsSection)
 							throw 'Docstring: [options] requires option descriptions section';
 						EOptionals(EOption);
-					case TOption(o):
-						var p = null;
-						if (isLongOption.match(o)) {
-							if (isKeyVal.match(o)) {
-								o = isKeyVal.matched(1);
-								p = isKeyVal.matched(2);
-								if (hasParam(o) == false)
-									throw 'Docstring: option $o does not expect param';
-							}
-						} else if (isShortOptionCat.match(o)) {
-							o = isShortOptionCat.matched(1);
-							if (hasParam(o))
-								p = isShortOptionCat.matched(2);
+					case TLongOption(name, val), TShortOption(name, val):
+						if (val != null && hasParam(name) == false) {
+							if (t.match(TLongOption(_, _)))
+								throw 'Docstring: option $name does not expect param';
+							else if (val.length > 1)
+								push(TShortOption("-" + val.charAt(0), val.substr(1)));
 							else
-								push(TOption("-" + isShortOptionCat.matched(2)));
+								push(TShortOption("-" + val.charAt(0)));
 						}
-						if (p == null && hasParam(o)) {
-							p = switch (pop()) {
+						if (val == null && hasParam(name)) {
+							val = switch (pop()) {
 								case TArgument(a): a;
-								case _: throw 'Docstring: missing parameter for $o';
-								}
+								case _: throw 'Docstring: missing parameter for $name';
+							}
 						}
-						var opt = usage.options[o];
-						if (opt == null) {
-							usage.options[o] = opt = {
-								names : [o],
-								hasParam : p != null,
+						if (!usage.options.exists(name)) {
+							usage.options[name] = {
+								names : [name],
+								hasParam : val != null,
 								defaultValue : null
 							};
 						}
