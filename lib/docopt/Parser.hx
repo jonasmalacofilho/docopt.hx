@@ -6,7 +6,7 @@ using StringTools;
 
 class Parser {
 	static var isKeyVal = ~/^([^=]+)=(.+)$/;
-	static var isArgument = ~/^((<.+?>)|([A-Z0-9_][A-Z0-9:_-]*))$/;
+	static var isArgument = ~/^((<.+?>)|([^a-z]*[A-Z]+[^a-z]*))$/;
 	static var isLongOption = ~/^--.+$/;
 	static var isShortOption = ~/^-[^-]$/;
 	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
