@@ -5,42 +5,7 @@ import docopt.Token;
 using StringTools;
 
 class Parser {
-	static var isArgument = ~/^((<.+?>)|([^a-z]*[A-Z]+[^a-z]*))$/;
-	static var isLongOption = ~/^(--.+?)(=(.+))?$/;
-	static var isShortOption = ~/^(-[^-])$/;
-	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
 	static var hasDefault = ~/\[default:([^\]]+)\]/i;
-
-	static function tokensOf(li:String)
-	{
-		var tokenPattern = ~/(\[options\]|[()|[\]]|(\.\.\.)|[^ \t()|.[\]]+)[ \t]*/;
-		var tokens = new List();
-		while (tokenPattern.match(li)) {
-			var t = switch (tokenPattern.matched(1)) {
-				case "[": TOpenBracket;
-				case "]": TCloseBracket;
-				case "(": TOpenParens;
-				case ")": TCloseParens;
-				case "|": TPipe;
-				case "...": TElipsis;
-				case _.toLowerCase() => "[options]": TOptionsShortcut;
-				case w:
-					if (isLongOption.match(w))
-						TLongOption(isLongOption.matched(1), isLongOption.matched(3));
-					else if (isShortOption.match(w))
-						TShortOption(isShortOption.matched(0), null);
-					else if (isShortOptionCat.match(w))
-						TShortOption(isShortOptionCat.matched(1), isShortOptionCat.matched(2));
-					else if (isArgument.match(w))
-						TArgument(w);
-					else
-						TCommand(w);
-				}
-			tokens.add(t);
-			li = tokenPattern.matchedRight();
-		}
-		return tokens;
-	}
 
 	static function parseOptionDesc(li:String):Option
 	{
@@ -54,18 +19,14 @@ class Parser {
 			defaultValue : null
 		};
 		for (n in names) {
-			if (isLongOption.match(n)) {
-				if (isLongOption.matched(3) != null)
+			switch (Tokenizer.tokenizePattern(n).first()) {
+			case TLongOption(name, param), TShortOption(name, param):
+				if (param != null)
 					opt.hasParam = true;
-				opt.names.push(isLongOption.matched(1));
-			} else if (isShortOptionCat.match(n)) {
+				opt.names.push(name);
+			case TArgument(param):
 				opt.hasParam = true;
-				opt.names.push(isShortOptionCat.matched(1));
-			} else if (isShortOption.match(n)) {
-				opt.names.push(n);
-			} else if (isArgument.match(n)) {
-				opt.hasParam = true;
-			} else {
+			case _:
 				throw 'Docstring: bad option name $n';
 			}
 		}
@@ -81,7 +42,7 @@ class Parser {
 		li = li.trim();
 		if (li == "")
 			return null;
-		var tokens = tokensOf(li);
+		var tokens = Tokenizer.tokenizePattern(li);
 		var rewindBuf = new List();
 		function pop()
 		{

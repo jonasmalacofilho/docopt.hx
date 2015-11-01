@@ -1,6 +1,6 @@
 package docopt;
 
-enum Token {
+enum PatternToken {
 	TOpenBracket;
 	TCloseBracket;
 	TOpenParens;
