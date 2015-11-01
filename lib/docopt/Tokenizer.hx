@@ -38,5 +38,25 @@ class Tokenizer {
 		}
 		return tokens;
 	}
+
+	public static function tokenizeArgument(arg:String):ArgumentToken
+	{
+		return if (isLongOption.match(arg))
+				ALongOption(isLongOption.matched(1), isLongOption.matched(3));
+			else if (isShortOption.match(arg))
+				AShortOption(isShortOption.matched(0), null);
+			else if (isShortOptionCat.match(arg))
+				AShortOption(isShortOptionCat.matched(1), isShortOptionCat.matched(2));
+			else
+				AArgument(arg);
+	}
+
+	public static function tokenizeArguments(args:Array<String>):List<ArgumentToken>
+	{
+		var tokens = new List();
+		for (arg in args)
+			tokens.add(tokenizeArgument(arg));
+		return tokens;
+	}
 }
 

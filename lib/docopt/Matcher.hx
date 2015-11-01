@@ -1,6 +1,7 @@
 package docopt;
 
 import docopt.Expr;
+import docopt.Token;
 using StringTools;
 
 class Matcher {
@@ -31,13 +32,13 @@ class Matcher {
 		return res;
 	}
 
-	static function tryMatchExpr(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
+	static function tryMatchExpr(args:List<ArgumentToken>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
-		var _a = args.copy();
+		var _a = Lambda.list(args);
 		var _r = new Map();
 		if (matchExpr(_a, expr, opts, _r)) {
 			while (args.length > _a.length)
-				args.shift();
+				args.pop();
 			for (k in _r.keys())
 				res[k] = _r[k];
 			return true;
@@ -45,7 +46,33 @@ class Matcher {
 		return false;
 	}
 
-	static function matchExpr(args:Array<String>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
+	static function popArgument(args:List<ArgumentToken>)
+	{
+		for (a in args) {
+			switch (a) {
+			case AArgument(arg):
+				args.remove(a);
+				return arg;
+			case _: // NOOP
+			}
+		}
+		return null;
+	}
+
+	static function popOption(args:List<ArgumentToken>)
+	{
+		for (a in args) {
+			switch (a) {
+			case ALongOption(name, param), AShortOption(name, param):
+				args.remove(a);
+				return { name : name, param : param, arg : a };
+			case _: // NOOP
+			}
+		}
+		return null;
+	}
+
+	static function matchExpr(args:List<ArgumentToken>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
 		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
 			return false;
@@ -57,57 +84,6 @@ class Matcher {
 				if (!matchExpr(args, e, opts, res))
 					return false;
 			}
-		case EArgument(arg):
-			res[arg.name] = args.shift();
-		case ECommand(name):
-			if (args.shift() != name)
-				return false;
-			res[name] = true;
-		case EOption:
-			var r = null;
-			var o = args.shift();
-			var p = null;
-			if (o.startsWith("--")) {
-				var eqi = o.indexOf("=");
-				if (eqi > -1) {
-					p = o.substr(eqi + 1);
-					o = o.substr(0, eqi);
-				}
-			} else if (o.length > 2) {
-				r = o.substr(2);
-				o = o.substr(0, 2);
-			}
-			var opt = null;
-			for (_opt in opts) {
-				if (Lambda.has(_opt.names, o)) {
-					opt = _opt;
-					break;
-				}
-			}
-			if (opt == null) {
-				for (_opt in opts) {
-					if (Lambda.exists(_opt.names, function (n) return n.startsWith(o))) {
-						opt = _opt;
-						break;
-					}
-				}
-			}
-			if (opt == null)
-				return false;
-			if (p == null && opt.hasParam) {
-				if (r != null) {
-					p = r;
-					r = null;
-				} else if (args.length > 0) {
-					p = args.shift();
-				} else {
-					return false;
-				}
-			}
-			if (r != null)
-				args.unshift("-" + r);
-			for (n in opt.names)
-				res[n] = untyped p != null ? p : true;
 		case EOptionals(e):
 			tryMatchExpr(args, e, opts, res);
 		case ERequired(e):
@@ -124,15 +100,62 @@ class Matcher {
 				return false;
 			while (matchExpr(args, e, opts, res))
 				true;  // NOOP
+		case EArgument(arg):
+			var val = popArgument(args);
+			if (val == null)
+				return false;
+			res[arg.name] = val;
+		case ECommand(name):
+			var val = popArgument(args);
+			if (val != name)
+				return false;
+			res[name] = true;
+		case EOption:
+			var val = popOption(args);
+			if (val == null)
+				return false;
+			var opt = null;
+			for (_opt in opts) {
+				if (Lambda.has(_opt.names, val.name)) {
+					opt = _opt;
+					break;
+				}
+			}
+			if (opt == null) {
+				for (_opt in opts) {
+					if (Lambda.exists(_opt.names, function (n) return n.startsWith(val.name))) {
+						opt = _opt;
+						break;
+					}
+				}
+			}
+			if (opt == null)
+				return false;
+			if (opt.hasParam && val.param == null) {
+				if (args.length > 0) {
+					val.param = popArgument(args);
+				} else {
+					return false;
+				}
+			} else if (!opt.hasParam && val.param != null) {
+				if (val.arg.match(AShortOption(_))) {
+					args.push(Tokenizer.tokenizeArgument("-" + val.param));
+					val.param = null;
+				} else {
+					return false;
+				}
+			}
+			for (n in opt.names)
+				res[n] = untyped val.param != null ? val.param : true;
 		}
 		return true;
 	}
 
 	public static function match(usage, pat, args)
 	{
-		var _args = args.copy();
+		var args = Tokenizer.tokenizeArguments(args);
 		var res = makeRes(usage);
-		if (matchExpr(_args, pat.pattern, usage.options, res) && _args.length == 0)
+		if (matchExpr(args, pat.pattern, usage.options, res) && args.length == 0)
 			return res;
 		return null;
 	}
