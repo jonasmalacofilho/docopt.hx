@@ -86,7 +86,7 @@ class Parser {
 					case TOptionsShortcut:
 						if (!usage.hasOptionsSection)
 							throw 'Docstring: [options] requires option descriptions section';
-						EOptionals(EOption);
+						EOptionals(EOption(null));
 					case TLongOption(name, val), TShortOption(name, val):
 						if (val != null && hasParam(name) == false) {
 							if (t.match(TLongOption(_, _)))
@@ -102,14 +102,15 @@ class Parser {
 								case _: throw 'Docstring: missing parameter for $name';
 							}
 						}
-						if (!usage.options.exists(name)) {
-							usage.options[name] = {
+						var opt = usage.options[name];
+						if (opt == null) {
+							opt = usage.options[name] = {
 								names : [name],
 								hasParam : val != null,
 								defaultValue : null
 							};
 						}
-						EOption;
+						EOption(opt);
 					case TOpenBracket:
 						var inner = expr(TCloseBracket);
 						var n = pop();

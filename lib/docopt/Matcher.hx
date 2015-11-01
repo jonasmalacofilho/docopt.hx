@@ -21,7 +21,7 @@ class Matcher {
 			case EList(li): for (e in li) addToRes(e);
 			case EArgument(arg): res[arg.name] = null;
 			case ECommand(cmd): res[cmd] = false;
-			case EOption: return;
+			case EOption(opt): return;
 			case EOptionals(e), ERequired(e), EElipsis(e): addToRes(e);
 			case EXor(a, b): addToRes(a); addToRes(b);
 			}
@@ -37,8 +37,9 @@ class Matcher {
 		var _a = Lambda.list(args);
 		var _r = new Map();
 		if (matchExpr(_a, expr, opts, _r)) {
-			while (args.length > _a.length)
-				args.pop();
+			var rem = [ for (arg in args) if (!Lambda.has(_a, arg)) arg];
+			while (rem.length > 0)
+				args.remove(rem.pop());
 			for (k in _r.keys())
 				res[k] = _r[k];
 			return true;
@@ -59,13 +60,15 @@ class Matcher {
 		return null;
 	}
 
-	static function popOption(args:List<ArgumentToken>)
+	static function popOption(args:List<ArgumentToken>, ?names:Array<String>)
 	{
 		for (a in args) {
 			switch (a) {
 			case ALongOption(name, param), AShortOption(name, param):
-				args.remove(a);
-				return { name : name, param : param, arg : a };
+				if (names == null || Lambda.has(names, name)) {
+					args.remove(a);
+					return { name : name, param : param, arg : a };
+				}
 			case _: // NOOP
 			}
 		}
@@ -110,26 +113,15 @@ class Matcher {
 			if (val != name)
 				return false;
 			res[name] = true;
-		case EOption:
-			var val = popOption(args);
+		case EOption(null):
+			// FIXME don't try each option more than once
+			// FIXME don't try options in the pattern
+			// TODO maybe move this in the parser
+			for (opt in opts)
+				matchExpr(args, EOption(opt), opts, res);
+		case EOption(opt):
+			var val = popOption(args, opt.names);
 			if (val == null)
-				return false;
-			var opt = null;
-			for (_opt in opts) {
-				if (Lambda.has(_opt.names, val.name)) {
-					opt = _opt;
-					break;
-				}
-			}
-			if (opt == null) {
-				for (_opt in opts) {
-					if (Lambda.exists(_opt.names, function (n) return n.startsWith(val.name))) {
-						opt = _opt;
-						break;
-					}
-				}
-			}
-			if (opt == null)
 				return false;
 			if (opt.hasParam && val.param == null) {
 				if (args.length > 0) {
