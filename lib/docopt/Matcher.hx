@@ -78,9 +78,9 @@ class Matcher {
 
 	static function matchExpr(args:List<ArgumentToken>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
 	{
+		trace("matching " + expr);
 		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
 			return false;
-		trace("matching " + expr);
 		switch (expr) {
 		case EEmpty:  // NOOP
 		case EList(list):
@@ -118,8 +118,10 @@ class Matcher {
 			// FIXME don't try each option more than once
 			// FIXME don't try options in the pattern
 			// TODO maybe move this in the parser
+			var succeeded = false;
 			for (opt in opts)
-				matchExpr(args, EOption(opt), opts, res);
+				succeeded = tryMatchExpr(args, EOption(opt), opts, res) || succeeded;
+			return succeeded;
 		case EOption(opt):
 			var val = popOption(args, opt.names);
 			if (val == null)
