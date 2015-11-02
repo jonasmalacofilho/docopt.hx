@@ -1,5 +1,6 @@
 package docopt;
 
+import docopt.Element;
 import docopt.Token;
 
 class Tokenizer {
@@ -7,6 +8,18 @@ class Tokenizer {
 	static var isLongOption = ~/^(--.+?)(=(.+))?$/;
 	static var isShortOption = ~/^(-[^-])$/;
 	static var isShortOptionCat = ~/^(-[^-])(.+)$/;
+
+	static function tokenizeArgument(arg:String):ArgumentToken
+	{
+		return if (isLongOption.match(arg))
+				ALongOption(isLongOption.matched(1), isLongOption.matched(3));
+			else if (isShortOption.match(arg))
+				AShortOption(isShortOption.matched(0), null);
+			else if (isShortOptionCat.match(arg))
+				AShortOption(isShortOptionCat.matched(1), isShortOptionCat.matched(2));
+			else
+				AArgument(arg);
+	}
 
 	public static function tokenizePattern(li:String):List<PatternToken>
 	{
@@ -39,23 +52,20 @@ class Tokenizer {
 		return tokens;
 	}
 
-	public static function tokenizeArgument(arg:String):ArgumentToken
+	public static function tokenizeArguments(args:Array<String>, opts:Map<String,Option>):List<ArgumentToken>
 	{
-		return if (isLongOption.match(arg))
-				ALongOption(isLongOption.matched(1), isLongOption.matched(3));
-			else if (isShortOption.match(arg))
-				AShortOption(isShortOption.matched(0), null);
-			else if (isShortOptionCat.match(arg))
-				AShortOption(isShortOptionCat.matched(1), isShortOptionCat.matched(2));
-			else
-				AArgument(arg);
-	}
-
-	public static function tokenizeArguments(args:Array<String>):List<ArgumentToken>
-	{
+		var args = args.copy();
 		var tokens = new List();
-		for (arg in args)
-			tokens.add(tokenizeArgument(arg));
+		while (args.length > 0) {
+			var t = tokenizeArgument(args.shift());
+			switch (t) {
+			case AShortOption(name, rest) if (rest != null && opts.exists(name) && !opts[name].hasParam):
+				t = AShortOption(name, null);
+				args.unshift("-" + rest);
+			case _: // NOOP
+			}
+			tokens.add(t);
+		}
 		return tokens;
 	}
 }

@@ -1,5 +1,6 @@
 package docopt;
 
+import docopt.Element;
 import docopt.Expr;
 import docopt.Token;
 using StringTools;

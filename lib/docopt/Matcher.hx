@@ -1,5 +1,6 @@
 package docopt;
 
+import docopt.Element;
 import docopt.Expr;
 import docopt.Token;
 using StringTools;
@@ -131,8 +132,7 @@ class Matcher {
 				}
 			} else if (!opt.hasParam && val.param != null) {
 				if (val.arg.match(AShortOption(_))) {
-					args.push(Tokenizer.tokenizeArgument("-" + val.param));
-					val.param = null;
+					throw 'Assert fail: !opt.hasParam && val.param != null && val.arg.match(AShortOption(_))';
 				} else {
 					return false;
 				}
@@ -145,7 +145,7 @@ class Matcher {
 
 	public static function match(usage, pat, args)
 	{
-		var args = Tokenizer.tokenizeArguments(args);
+		var args = Tokenizer.tokenizeArguments(args, usage.options);
 		var res = makeRes(usage);
 		if (matchExpr(args, pat.pattern, usage.options, res) && args.length == 0)
 			return res;
