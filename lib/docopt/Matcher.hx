@@ -75,6 +75,12 @@ class Matcher {
 				if (!match(_args, e, opts, _res))
 					return false;
 			}
+		case EOptionals(EList(list)):
+			var succeeded = false;
+			for (e in list)
+				succeeded = match(_args, e, opts, _res) || succeeded;
+			if (!succeeded)
+				return false;
 		case EOptionals(e):
 			match(_args, e, opts, _res);
 		case ERequired(e):
