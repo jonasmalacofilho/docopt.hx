@@ -5,8 +5,20 @@ import docopt.Expr;
 import docopt.Token;
 using StringTools;
 
+typedef Value = {
+	name : String,
+	value : Dynamic
+}
+
+enum MatchResult {
+	Fail;
+	Matched(collected:Array<Value>, left:Array<ArgumentToken>);
+}
+
 class Matcher {
-	static function makeRes(usage:Usage):Map<String,Dynamic>
+	var usage:Usage;
+
+	function makeRes():Map<String,Dynamic>
 	{
 		var res = new Map<String,Dynamic>();
 		for (o in usage.options) {
@@ -33,7 +45,7 @@ class Matcher {
 		return res;
 	}
 
-	static function popArgument(args:List<ArgumentToken>)
+	function popArgument(args:Array<ArgumentToken>)
 	{
 		for (a in args) {
 			switch (a) {
@@ -46,7 +58,7 @@ class Matcher {
 		return null;
 	}
 
-	static function popOption(args:List<ArgumentToken>, ?names:Array<String>)
+	function popOption(args:Array<ArgumentToken>, ?names:Array<String>)
 	{
 		for (a in args) {
 			switch (a) {
@@ -61,98 +73,125 @@ class Matcher {
 		return null;
 	}
 
-	static function match(args:List<ArgumentToken>, expr:Expr, opts:Map<String, Option>, res:Map<String,Dynamic>):Bool
+	function join(collected:Array<Value>, left:Array<ArgumentToken>, result:MatchResult)
+	{
+		return switch (result) {
+			case Fail: false;
+			case Matched(c, l):
+				for (v in c)
+					collected.push(v);
+				var rm = [ for (a in left) if (!Lambda.has(l, a)) a ];
+				while (rm.length > 0)
+					left.remove(rm.shift());
+				true;
+			}
+	}
+
+	function match(expr:Expr, args:Array<ArgumentToken>):MatchResult
 	{
 		trace("matching " + expr);
 		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
-			return false;
-		var _args = Lambda.list(args);
-		var _res = new Map<String,Dynamic>();
+			return Fail;
+		var collected = [];
+		var left = args.copy();
+		trace(collected);
+		trace(left);
 		switch (expr) {
 		case EEmpty:  // NOOP
 		case EList(list):
-			for (e in list) {
-				if (!match(_args, e, opts, _res))
-					return false;
-			}
-		case EOptionals(EList(list)):
-			var succeeded = false;
 			for (e in list)
-				succeeded = match(_args, e, opts, _res) || succeeded;
-			if (!succeeded)
-				return false;
+				if (!join(collected, left, match(e, left)))
+					return Fail;
+		case EOptionals(EList(list)):
+			var s = false;
+			for (e in list)
+				s = join(collected, left, match(e, left)) || s;
+			if (!s)
+				return Fail;
 		case EOptionals(e):
-			match(_args, e, opts, _res);
-		case ERequired(e):
-			if (!match(args, e, opts, res))
-				return false;
-		case EXor(a, b):
-			if (!match(args, a, opts, res) && !match(args, b, opts, res))
-				return false;
+			join(collected, left, match(e, left));
 		case EElipsis(EOptionals(e)):
-			match(_args, e, opts, _res);
-			while (match(_args, e, opts, _res))
-				true;  // NOOP
+			return match(EOptionals(EElipsis(e)), left);
 		case EElipsis(e):
-			// TODO deal (somewhere) with the multiple returned values
-			if (!match(_args, e, opts, _res))
-				return false;
-			while (match(_args, e, opts, _res))
-				true;  // NOOP
+			if (!join(collected, left, match(e, left)))
+				return Fail;
+			while (join(collected, left, match(e, left)))
+				null;  // NOOP
+		case ERequired(e):
+			return match(e, left);
+		case EXor(a, b):
+			var ma = match(a, left);
+			var mb = match(b, left);
+			return switch [ma, mb] {
+				case [Matched(_), Fail]: ma;
+				case [Fail, Matched(_)]: mb;
+				case [Matched(_, la), Matched(_, lb)]: la.length < lb.length ? ma : mb;
+				case [Fail, Fail]: Fail;
+				}
 		case EArgument(arg):
-			var val = popArgument(_args);
+			var val = popArgument(left);
 			if (val == null)
-				return false;
-			_res[arg.name] = val;
+				return Fail;
+			collected.push({ name : arg.name, value : val });
 		case ECommand(name):
-			var val = popArgument(_args);
+			var val = popArgument(left);
 			if (val != name)
-				return false;
-			_res[name] = true;
+				return Fail;
+			collected.push({ name : name, value : true });
 		case EOption(null):
 			// FIXME don't try each option more than once
 			// FIXME don't try options in the pattern
 			// TODO maybe move this in the parser
-			var succeeded = false;
-			for (opt in opts)
-				succeeded = match(_args, EOption(opt), opts, _res) || succeeded;
-			if (!succeeded)
-				return false;
+			var s = false;
+			for (opt in usage.options)
+				s = join(collected, left, match(EOption(opt), left)) || s;
+			if (!s)
+				return Fail;
 		case EOption(opt):
-			var val = popOption(_args, opt.names);
+			var val = popOption(left, opt.names);
 			if (val == null)
-				return false;
+				return Fail;
 			if (opt.hasParam && val.param == null) {
-				if (_args.length > 0) {
-					val.param = popArgument(_args);
+				if (left.length > 0) {
+					val.param = popArgument(left);
 				} else {
-					return false;
+					return Fail;
 				}
 			} else if (!opt.hasParam && val.param != null) {
 				if (val.arg.match(AShortOption(_))) {
-					throw 'Assert fail: !opt.hasParam && val.param != null && val.arg.match(AShortOption(_))';
+					throw 'Assert fail: short option with unexpected param';
 				} else {
-					return false;
+					return Fail;
 				}
 			}
-			for (n in opt.names)
-				_res[n] = untyped val.param != null ? val.param : true;
+			for (n in opt.names) {
+				var val:Dynamic = val.param != null ? val.param : true;
+				collected.push({ name : n, value : val });
+			}
 		}
-		var rem = [ for (a in args) if (!Lambda.has(_args, a)) a];
-		while (rem.length > 0)
-			args.remove(rem.pop());
-		for (k in _res.keys())
-			res[k] = _res[k];
-		return true;
+		return Matched(collected, left);
 	}
 
-	public static function matchPattern(usage, pat, args)
+	public function matchPattern(pat, args)
 	{
 		var args = Tokenizer.tokenizeArguments(args, usage.options);
-		var res = makeRes(usage);
-		if (match(args, pat.pattern, usage.options, res) && args.length == 0)
-			return res;
-		return null;
+		var res = makeRes();
+		return switch (match(pat.pattern, args)) {
+			case Matched(collected, left) if (left.length == 0):
+				var r = makeRes();
+				for (v in collected) {
+					// TODO deal with multiple returned values
+					r[v.name] = v.value;
+				}
+				r;
+			case _:
+				null;
+			}
+	}
+
+	public function new(usage)
+	{
+		this.usage = usage;
 	}
 }
 

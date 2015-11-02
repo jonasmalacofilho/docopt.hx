@@ -37,7 +37,7 @@ class DocOpt {
 		for (pat in usage.patterns) {
 			trace("pattern " + Lambda.indexOf(usage.patterns, pat));
 			// trace("expr " + pat.pattern);
-			var res = Matcher.matchPattern(usage, pat, args);
+			var res = new Matcher(usage).matchPattern(pat, args);
 			if (res != null)
 				return res;
 			trace("failed match");

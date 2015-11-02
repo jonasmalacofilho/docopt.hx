@@ -52,10 +52,10 @@ class Tokenizer {
 		return tokens;
 	}
 
-	public static function tokenizeArguments(args:Array<String>, opts:Map<String,Option>):List<ArgumentToken>
+	public static function tokenizeArguments(args:Array<String>, opts:Map<String,Option>):Array<ArgumentToken>
 	{
 		var args = args.copy();
-		var tokens = new List();
+		var tokens = [];
 		while (args.length > 0) {
 			var t = tokenizeArgument(args.shift());
 			switch (t) {
@@ -64,7 +64,7 @@ class Tokenizer {
 				args.unshift("-" + rest);
 			case _: // NOOP
 			}
-			tokens.add(t);
+			tokens.push(t);
 		}
 		return tokens;
 	}
