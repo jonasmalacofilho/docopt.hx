@@ -127,6 +127,10 @@ class Parser {
 					case TCloseBracket, TCloseParens if (breakOn != null && t == breakOn):
 						rewind();
 						break;
+					case TPipe if (list.length > 0):
+						var e = EList(list);
+						list = [];
+						EXor(e, expr(breakOn));
 					case t:
 						throw 'Docstring: unexpected token $t';
 				}
@@ -135,9 +139,6 @@ class Parser {
 				case null:  // NOOP
 				case TElipsis:
 					e = EElipsis(e);
-					n = pop();
-				case TPipe:
-					e = EXor(e, expr(breakOn));
 					n = pop();
 				case _:
 				}
