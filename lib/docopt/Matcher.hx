@@ -90,8 +90,6 @@ class Matcher {
 	function match(expr:Expr, args:Array<ArgumentToken>):MatchResult
 	{
 		trace("matching " + expr);
-		if (!expr.match(EOptionals(_) | EEmpty) && args.length < 1)
-			return Fail;
 		var collected = [];
 		var left = args.copy();
 		trace(collected);
@@ -107,13 +105,14 @@ class Matcher {
 				join(collected, left, match(e, left));
 		case EOptionals(e):
 			join(collected, left, match(e, left));
-		case EElipsis(EOptionals(e)):
-			return match(EOptionals(EElipsis(e)), left);
 		case EElipsis(e):
 			if (!join(collected, left, match(e, left)))
 				return Fail;
-			while (join(collected, left, match(e, left)))
-				null;  // NOOP
+			var cnt;
+			do {
+				cnt = collected.length;
+				join(collected, left, match(e, left));
+			} while (cnt != collected.length);
 		case ERequired(e):
 			return match(e, left);
 		case EXor(a, b):
@@ -166,6 +165,7 @@ class Matcher {
 				collected.push({ name : n, value : val });
 			}
 		}
+		trace(Matched(collected, left));
 		return Matched(collected, left);
 	}
 
