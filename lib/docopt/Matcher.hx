@@ -103,11 +103,8 @@ class Matcher {
 				if (!join(collected, left, match(e, left)))
 					return Fail;
 		case EOptionals(EList(list)):
-			var s = false;
 			for (e in list)
-				s = join(collected, left, match(e, left)) || s;
-			if (!s)
-				return Fail;
+				join(collected, left, match(e, left));
 		case EOptionals(e):
 			join(collected, left, match(e, left));
 		case EElipsis(EOptionals(e)):
