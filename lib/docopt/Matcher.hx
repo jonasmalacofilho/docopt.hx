@@ -87,19 +87,23 @@ class Matcher {
 			}
 	}
 
+	function t(r:MatchResult):MatchResult
+	{
+		trace("result " + r);
+		return r;
+	}
+
 	function match(expr:Expr, args:Array<ArgumentToken>):MatchResult
 	{
 		trace("matching " + expr);
 		var collected = [];
 		var left = args.copy();
-		trace(collected);
-		trace(left);
 		switch (expr) {
 		case EEmpty:  // NOOP
 		case EList(list):
 			for (e in list)
 				if (!join(collected, left, match(e, left)))
-					return Fail;
+					return t(Fail);
 		case EOptionals(EList(list)):
 			for (e in list)
 				join(collected, left, match(e, left));
@@ -107,32 +111,32 @@ class Matcher {
 			join(collected, left, match(e, left));
 		case EElipsis(e):
 			if (!join(collected, left, match(e, left)))
-				return Fail;
+				return t(Fail);
 			var cnt;
 			do {
 				cnt = collected.length;
 				join(collected, left, match(e, left));
 			} while (cnt != collected.length);
 		case ERequired(e):
-			return match(e, left);
+			return t(match(e, left));
 		case EXor(a, b):
 			var ma = match(a, left);
 			var mb = match(b, left);
-			return switch [ma, mb] {
+			return t(switch [ma, mb] {
 				case [Matched(_), Fail]: ma;
 				case [Fail, Matched(_)]: mb;
 				case [Matched(_, la), Matched(_, lb)]: la.length < lb.length ? ma : mb;
 				case [Fail, Fail]: Fail;
-				}
+				});
 		case EArgument(arg):
 			var val = popArgument(left);
 			if (val == null)
-				return Fail;
+				return t(Fail);
 			collected.push({ name : arg.name, value : val });
 		case ECommand(name):
 			var val = popArgument(left);
 			if (val != name)
-				return Fail;
+				return t(Fail);
 			collected.push({ name : name, value : true });
 		case EOption(null):
 			// FIXME don't try each option more than once
@@ -142,22 +146,22 @@ class Matcher {
 			for (opt in usage.options)
 				s = join(collected, left, match(EOption(opt), left)) || s;
 			if (!s)
-				return Fail;
+				return t(Fail);
 		case EOption(opt):
 			var val = popOption(left, opt.names);
 			if (val == null)
-				return Fail;
+				return t(Fail);
 			if (opt.hasParam && val.param == null) {
 				if (left.length > 0) {
 					val.param = popArgument(left);
 				} else {
-					return Fail;
+					return t(Fail);
 				}
 			} else if (!opt.hasParam && val.param != null) {
 				if (val.arg.match(AShortOption(_))) {
 					throw 'Assert fail: short option with unexpected param';
 				} else {
-					return Fail;
+					return t(Fail);
 				}
 			}
 			for (n in opt.names) {
@@ -165,8 +169,7 @@ class Matcher {
 				collected.push({ name : n, value : val });
 			}
 		}
-		trace(Matched(collected, left));
-		return Matched(collected, left);
+		return t(Matched(collected, left));
 	}
 
 	public function matchPattern(pat, args)
