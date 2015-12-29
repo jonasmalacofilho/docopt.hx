@@ -42,7 +42,7 @@ class Parser {
 	{
 		li = li.trim();
 		if (li == "")
-			return null;
+			return;
 		var tokens = Tokenizer.tokenizePattern(li);
 		var rewindBuf = new List();
 		function pop()
